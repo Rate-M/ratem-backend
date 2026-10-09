@@ -73,6 +73,8 @@ test('Registra un usuario y confirma su correo una sola vez', async () => {
     .send({
       email: 'registro@example.com',
       password: 'Prueba12345',
+      acceptPrivacy: true,
+      acceptTerms: true,
     });
 
   expect(register.status).toBe(201);
@@ -124,6 +126,8 @@ test('El servicio rechaza un correo duplicado', async () => {
     registerUser({
       email: 'registro@example.com',
       password: 'Prueba12345',
+      acceptPrivacy: true,
+      acceptTerms: true,
     })
   ).rejects.toMatchObject({ status: 409 });
 
@@ -136,10 +140,14 @@ test.each([
   ['correo inválido', {
     email: 'correo-invalido',
     password: 'Prueba12345',
+    acceptPrivacy: true,
+    acceptTerms: true,
   }],
   ['contraseña corta', {
     email: 'registro@example.com',
     password: '123',
+    acceptPrivacy: true,
+    acceptTerms: true,
   }],
 ])('Rechaza registro con %s', async (label, body) => {
   const res = await request(app)
@@ -186,4 +194,50 @@ test('Un token mal formado se rechaza antes de consultar MongoDB', async () => {
 
   expect(res.status).toBe(400);
   expect(User.findOneAndUpdate).not.toHaveBeenCalled();
+});
+
+test.each([
+  ['aceptaciones ausentes', {}],
+  ['privacidad rechazada', {
+    acceptPrivacy: false,
+    acceptTerms: true,
+  }],
+  ['términos rechazados', {
+    acceptPrivacy: true,
+    acceptTerms: false,
+  }],
+  ['aceptaciones como texto', {
+    acceptPrivacy: 'true',
+    acceptTerms: 'true',
+  }],
+])('No registra al usuario con %s', async (label, acceptance) => {
+  const res = await request(app)
+    .post('/api/auth/register')
+    .send({
+      email: 'registro@example.com',
+      password: 'Prueba12345',
+      ...acceptance,
+    });
+
+  expect(res.status).toBe(400);
+  expect(res.body.errors).toEqual(expect.any(Array));
+  expect(User.findOne).not.toHaveBeenCalled();
+  expect(User.create).not.toHaveBeenCalled();
+  expect(Consent.insertMany).not.toHaveBeenCalled();
+  expect(sendVerificationEmail).not.toHaveBeenCalled();
+});
+
+test('El servicio también exige aceptación explícita', async () => {
+  await expect(
+    registerUser({
+      email: 'registro@example.com',
+      password: 'Prueba12345',
+      acceptPrivacy: false,
+      acceptTerms: true,
+    })
+  ).rejects.toMatchObject({ status: 400 });
+
+  expect(User.findOne).not.toHaveBeenCalled();
+  expect(User.create).not.toHaveBeenCalled();
+  expect(Consent.insertMany).not.toHaveBeenCalled();
 });

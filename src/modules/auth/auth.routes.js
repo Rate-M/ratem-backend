@@ -23,9 +23,20 @@ router.post(
   '/register',
   [
     body('email').isEmail().withMessage('Correo inválido').normalizeEmail(),
+
     body('password')
       .isLength({ min: 8 })
       .withMessage('La contraseña debe tener al menos 8 caracteres'),
+
+    body('acceptPrivacy')
+      .custom((value) => value === true)
+      .withMessage('Debes aceptar el aviso de privacidad'),
+
+    body('acceptTerms')
+      .custom((value) => value === true)
+      .withMessage('Debes aceptar los términos de servicio'),
+
+
   ],
   register
 );
