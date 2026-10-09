@@ -13,6 +13,9 @@ if (process.env.NODE_ENV !== 'test') app.use(morgan('dev'));
 const authRoutes = require('./modules/auth/auth.routes');
 app.use('/api/auth', authRoutes);
 
+const consentRoutes = require('./modules/consents/consent.routes');
+app.use('/api/consents', consentRoutes);
+
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 
 app.use((req, res) => res.status(404).json({ message: 'Ruta no encontrada' }));
