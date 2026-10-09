@@ -7,7 +7,19 @@ const { recordConsents } = require('../consents/consent.service');
 
 
 
-async function registerUser({ email, password }) {
+async function registerUser({
+  email,
+  password,
+  acceptPrivacy,
+  acceptTerms,
+}) {
+  if (acceptPrivacy !== true || acceptTerms !== true) {
+    const error = new Error(
+      'Debes aceptar el aviso de privacidad y los términos de servicio'
+    );
+    error.status = 400;
+    throw error;
+  }
   const existing = await User.findOne({ email });
   if (existing) {
     const error = new Error('El correo ya está registrado');
