@@ -1,6 +1,7 @@
 const {
   createProfile,
   getMyProfile,
+  updateMyProfile,
 } = require('./profile.service');
 
 async function create(req, res, next) {
@@ -26,4 +27,17 @@ async function getMe(req, res, next) {
   }
 }
 
-module.exports = { create, getMe };
+async function updateMe(req, res, next) {
+  try {
+    const profile = await updateMyProfile(
+      req.user.id,
+      req.body
+    );
+
+    res.status(200).json(profile);
+  } catch (error) {
+    next(error);
+  }
+}
+
+module.exports = { create, getMe, updateMe };

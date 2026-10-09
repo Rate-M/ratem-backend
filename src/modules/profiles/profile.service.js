@@ -64,4 +64,53 @@ async function getMyProfile(userId) {
   return profile;
 }
 
-module.exports = { createProfile, getMyProfile };
+async function updateMyProfile(userId, data) {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    fail('Envía un objeto con name o bio');
+  }
+
+  const keys = Object.keys(data);
+
+  if (
+    keys.length === 0 ||
+    keys.some((key) => !['name', 'bio'].includes(key))
+  ) {
+    fail('Solo puedes editar name y bio');
+  }
+
+  const updates = {};
+
+  if (Object.hasOwn(data, 'name')) {
+    if (
+      typeof data.name !== 'string' ||
+      !data.name.trim() ||
+      data.name.trim().length > 100
+    ) {
+      fail('El nombre es obligatorio y debe tener máximo 100 caracteres');
+    }
+
+    updates.name = data.name.trim();
+  }
+
+  if (Object.hasOwn(data, 'bio')) {
+    if (typeof data.bio !== 'string' || data.bio.length > 500) {
+      fail('La biografía debe tener máximo 500 caracteres');
+    }
+
+    updates.bio = data.bio;
+  }
+
+  const profile = await Profile.findOneAndUpdate(
+    { user: userId },
+    { $set: updates },
+    { returnDocument: 'after', runValidators: true }
+  );
+
+  if (!profile) {
+    fail('Todavía no tienes un perfil', 404);
+  }
+
+  return profile;
+}
+
+module.exports = { createProfile, getMyProfile, updateMyProfile };
