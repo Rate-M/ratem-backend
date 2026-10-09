@@ -1,5 +1,6 @@
 const Profile = require('./profile.model');
 const { savePhotos, deletePhotos } = require('./photo.service');
+const { normalizeProfileData } = require('./profile.validation');
 
 function fail(message, status = 400) {
   const error = new Error(message);
@@ -8,19 +9,7 @@ function fail(message, status = 400) {
 }
 
 async function createProfile(userId, data, files = []) {
-  const { name, bio = '' } = data;
-
-  if (
-    typeof name !== 'string' ||
-    !name.trim() ||
-    name.trim().length > 100
-  ) {
-    fail('El nombre es obligatorio y debe tener máximo 100 caracteres');
-  }
-
-  if (typeof bio !== 'string' || bio.length > 500) {
-    fail('La biografía debe tener máximo 500 caracteres');
-  }
+  const fields = normalizeProfileData(data);
 
   if (files.length < 1 || files.length > 6) {
     fail('Debes subir entre 1 y 6 fotos');
@@ -36,9 +25,8 @@ async function createProfile(userId, data, files = []) {
 
   try {
     return await Profile.create({
+      ...fields,
       user: userId,
-      name: name.trim(),
-      bio,
       photos: filenames.map(
         (filename) => `/uploads/profiles/${filename}`
       ),
@@ -48,6 +36,10 @@ async function createProfile(userId, data, files = []) {
 
     if (error.code === 11000) {
       fail('Ya tienes un perfil', 409);
+    }
+
+    if (error.name === 'ValidationError') {
+      error.status = 400;
     }
 
     throw error;
@@ -65,46 +57,23 @@ async function getMyProfile(userId) {
 }
 
 async function updateMyProfile(userId, data) {
-  if (!data || typeof data !== 'object' || Array.isArray(data)) {
-    fail('Envía un objeto con name o bio');
-  }
+  const updates = normalizeProfileData(data, true);
 
-  const keys = Object.keys(data);
+  let profile;
 
-  if (
-    keys.length === 0 ||
-    keys.some((key) => !['name', 'bio'].includes(key))
-  ) {
-    fail('Solo puedes editar name y bio');
-  }
-
-  const updates = {};
-
-  if (Object.hasOwn(data, 'name')) {
-    if (
-      typeof data.name !== 'string' ||
-      !data.name.trim() ||
-      data.name.trim().length > 100
-    ) {
-      fail('El nombre es obligatorio y debe tener máximo 100 caracteres');
+  try {
+    profile = await Profile.findOneAndUpdate(
+      { user: userId },
+      { $set: updates },
+      { returnDocument: 'after', runValidators: true }
+    );
+  } catch (error) {
+    if (error.name === 'ValidationError') {
+      error.status = 400;
     }
 
-    updates.name = data.name.trim();
+    throw error;
   }
-
-  if (Object.hasOwn(data, 'bio')) {
-    if (typeof data.bio !== 'string' || data.bio.length > 500) {
-      fail('La biografía debe tener máximo 500 caracteres');
-    }
-
-    updates.bio = data.bio;
-  }
-
-  const profile = await Profile.findOneAndUpdate(
-    { user: userId },
-    { $set: updates },
-    { returnDocument: 'after', runValidators: true }
-  );
 
   if (!profile) {
     fail('Todavía no tienes un perfil', 404);

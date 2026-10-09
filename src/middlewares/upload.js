@@ -5,7 +5,7 @@ const upload = multer({
   limits: {
     fileSize: 5 * 1024 * 1024,
     files: 6,
-    fields: 2,
+    fields: 8,
   },
   fileFilter: (req, file, cb) => {
     const allowedTypes = ['image/jpeg', 'image/png'];

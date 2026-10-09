@@ -32,6 +32,10 @@ Cada cuenta puede tener un perfil con:
 - Nombre de hasta 100 caracteres.
 - Biografía de hasta 500 caracteres.
 - Entre 1 y 6 fotografías JPG o PNG, de hasta 5 MB cada una.
+- Fecha de nacimiento correspondiente a una persona de al menos 18 años.
+- Género, preferencias sobre quién desea conocer y qué busca.
+- Hasta 10 intereses de entre 1 y 40 caracteres cada uno, sin repetir.
+- Signo zodiacal opcional.
 
 Solo debes subir imágenes y contenido que tengas derecho a utilizar.
 No publiques información privada de otras personas sin autorización.

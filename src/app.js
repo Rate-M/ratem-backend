@@ -33,7 +33,7 @@ app.use((err, req, res, next) => {
       LIMIT_FILE_SIZE: 'Cada foto debe pesar máximo 5 MB',
       LIMIT_FILE_COUNT: 'Puedes subir máximo 6 fotos',
       LIMIT_UNEXPECTED_FILE: 'Usa el campo photos y sube máximo 6 fotos',
-      LIMIT_FIELD_COUNT: 'Solo se permiten los campos name y bio',
+      LIMIT_FIELD_COUNT: 'Puedes enviar máximo 8 campos de texto',
     };
 
     return res.status(400).json({

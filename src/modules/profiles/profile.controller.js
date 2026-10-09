@@ -1,3 +1,5 @@
+const { serializeProfile } = require('./profile.serializer');
+
 const {
   createProfile,
   getMyProfile,
@@ -12,7 +14,7 @@ async function create(req, res, next) {
       req.files
     );
 
-    res.status(201).json(profile);
+    res.status(201).json(serializeProfile(profile));
   } catch (error) {
     next(error);
   }
@@ -21,7 +23,7 @@ async function create(req, res, next) {
 async function getMe(req, res, next) {
   try {
     const profile = await getMyProfile(req.user.id);
-    res.status(200).json(profile);
+    res.status(200).json(serializeProfile(profile));
   } catch (error) {
     next(error);
   }
@@ -34,7 +36,7 @@ async function updateMe(req, res, next) {
       req.body
     );
 
-    res.status(200).json(profile);
+    res.status(200).json(serializeProfile(profile));
   } catch (error) {
     next(error);
   }

@@ -55,7 +55,11 @@ test.each([1, 6])('Acepta un perfil con %i fotos', async (count) => {
   const req = request(app)
     .post('/api/profiles/me')
     .set('Authorization', `Bearer ${token}`)
-    .field('name', 'Elizabeth');
+    .field('name', 'Elizabeth')
+    .field('birthDate', '2000-01-15')
+    .field('gender', 'mujer')
+    .field('interestedIn', '["hombre"]')
+    .field('lookingFor', 'conocer_personas');
 
   for (let index = 0; index < count; index++) {
     req.attach('photos', photo, {
@@ -74,7 +78,11 @@ test.each([0, 7])('Rechaza un perfil con %i fotos', async (count) => {
   const req = request(app)
     .post('/api/profiles/me')
     .set('Authorization', `Bearer ${token}`)
-    .field('name', 'Elizabeth');
+    .field('name', 'Elizabeth')
+    .field('birthDate', '2000-01-15')
+    .field('gender', 'mujer')
+    .field('interestedIn', '["hombre"]')
+    .field('lookingFor', 'conocer_personas')
 
   for (let index = 0; index < count; index++) {
     req.attach('photos', photo, {
@@ -98,6 +106,10 @@ test.each([
     .post('/api/profiles/me')
     .set('Authorization', `Bearer ${token}`)
     .field('name', 'Elizabeth')
+    .field('birthDate', '2000-01-15')
+    .field('gender', 'mujer')
+    .field('interestedIn', '["hombre"]')
+    .field('lookingFor', 'conocer_personas')
     .field('bio', 'a'.repeat(length))
     .attach('photos', photo, {
       filename: 'foto.png',

@@ -20,6 +20,9 @@ Para gestionar la cuenta y el perfil se utilizan:
 - Nombre, biografía y fotografías de perfil.
 - Estado de verificación de la cuenta.
 - Registros de aceptación y revocación de consentimientos.
+- Fecha de nacimiento para calcular la edad y comprobar la mayoría de edad declarada.
+- Género, preferencias sobre quién deseas conocer y qué buscas.
+- Intereses y signo zodiacal, si decides proporcionarlos.
 
 Las funciones planeadas podrán utilizar, previa información y autorización:
 - Ubicación del dispositivo.
@@ -35,6 +38,10 @@ solicitarán estos datos durante las pruebas actuales del sprint.
 
 Los datos de cuenta y perfil permiten registrar usuarios, iniciar sesión,
 confirmar el correo, recuperar el acceso y mostrar el perfil.
+
+Los datos del perfil permiten describir tus intereses y preferencias.
+La fecha de nacimiento se conserva internamente; las respuestas del
+perfil muestran la edad calculada.
 
 La verificación planeada busca comprobar identidad y mayoría de edad
 mediante una API externa que compare la selfie con la identificación.
