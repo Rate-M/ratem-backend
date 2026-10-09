@@ -6,6 +6,7 @@ const {
   login,
   forgotPasswordHandler,
   resetPasswordHandler,
+  verifyEmailHandler,
 } = require('./auth.controller');
 
 const router = Router();
@@ -56,5 +57,6 @@ router.post(
   ],
   resetPasswordHandler
 );
+router.get('/verify-email', verifyEmailHandler);
 
 module.exports = router;

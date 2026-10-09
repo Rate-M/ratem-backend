@@ -2,7 +2,9 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const User = require('../users/user.model');
+const { sendVerificationEmail } = require('../../config/mail');
 const { recordConsents } = require('../consents/consent.service');
+
 
 
 async function registerUser({ email, password }) {
@@ -17,6 +19,17 @@ async function registerUser({ email, password }) {
   const user = await User.create({ email, passwordHash });
 
   await recordConsents(user._id, ['privacy', 'terms']);
+  const token = crypto.randomBytes(32).toString('hex');
+
+  user.emailVerificationTokenHash = crypto
+    .createHash('sha256')
+    .update(token)
+    .digest('hex');
+  
+    user.emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    await user.save();
+    await sendVerificationEmail(user.email, token);
 
   return user;
 }
@@ -76,6 +89,35 @@ async function resetPassword({ token, password }) {
   user.passwordResetExpires = null;
   await user.save();
 }
+async function verifyEmail(token) {
+  if (typeof token !== 'string' || !/^[a-f0-9]{64}$/.test(token)) {
+    const error = new Error('Enlace de confirmación inválido');
+    error.status = 400;
+    throw error;
+  }
 
-module.exports = { registerUser, loginUser, forgotPassword, resetPassword };
+  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+  
+  const user = await User.findOneAndUpdate(
+    {
+      emailVerificationTokenHash: tokenHash,
+      emailVerificationExpires: { $gt: new Date() },
+    },
+    {
+      $set: {
+        emailVerified: true,
+        emailVerificationTokenHash: null,
+        emailVerificationExpires: null,
+      },
+    },
+    { returnDocument: 'after' }
+  );
+  if (!user) {
+    const error = new Error('Enlace de confirmación inválido o expirado');
+    error.status = 400;
+    throw error;
+  }
+  return user;
+}
 
+module.exports = { registerUser, loginUser, forgotPassword, resetPassword, verifyEmail };

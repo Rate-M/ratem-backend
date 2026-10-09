@@ -1,5 +1,5 @@
 const { validationResult } = require('express-validator');
-const { registerUser, loginUser, forgotPassword, resetPassword } = require('./auth.service');
+const { registerUser, loginUser, forgotPassword, resetPassword, verifyEmail} = require('./auth.service');
 
 async function register(req, res, next) {
   const errors = validationResult(req);
@@ -70,5 +70,16 @@ async function resetPasswordHandler(req, res, next) {
     next(err);
   }
 }
+async function verifyEmailHandler(req, res, next) {
+  try {
+    await verifyEmail(req.query.token);
 
-module.exports = { register, login, forgotPasswordHandler, resetPasswordHandler };
+    res.status(200).json({
+      message: 'Correo confirmado correctamente',
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { register, login, forgotPasswordHandler, resetPasswordHandler, verifyEmailHandler };
