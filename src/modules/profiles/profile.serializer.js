@@ -33,4 +33,31 @@ function serializeProfile(profile, today = new Date()) {
   return data;
 }
 
-module.exports = { serializeProfile };
+const PUBLIC_FIELDS = [
+  'user',
+  'name',
+  'age',
+  'gender',
+  'lookingFor',
+  'interests',
+  'zodiacSign',
+  'bio',
+  'photos',
+];
+
+function serializePublicProfile(profile, today = new Date()) {
+  const data = serializeProfile(profile, today);
+  const result = {};
+
+  for (const field of PUBLIC_FIELDS) {
+    result[field] = data[field];
+  }
+
+  result.averageRating = null;
+  result.reviewCount = 0;
+  result.reviews = [];
+
+  return result;
+}
+
+module.exports = { serializeProfile, serializePublicProfile };
