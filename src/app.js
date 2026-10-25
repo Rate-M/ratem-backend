@@ -7,7 +7,11 @@ const app = express();
 
 app.use(helmet());
 app.use(cors({ origin: process.env.CLIENT_URL }));
-app.use(express.json());
+app.use(express.json({
+  verify: (req, res, buffer) => {
+    req.rawBody = buffer;
+  },
+}));
 if (process.env.NODE_ENV !== 'test') app.use(morgan('dev'));
 
 const authRoutes = require('./modules/auth/auth.routes');
@@ -18,6 +22,9 @@ app.use('/api/consents', consentRoutes);
 
 const profileRoutes = require('./modules/profiles/profile.routes');
 app.use('/api/profiles', profileRoutes);
+
+const verificationRoutes = require('./modules/verification/verification.routes');
+app.use('/api/verification', verificationRoutes);
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 
