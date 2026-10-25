@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Profile = require('./profile.model');
 const { savePhotos, deletePhotos } = require('./photo.service');
 const { normalizeProfileData } = require('./profile.validation');
@@ -82,4 +83,23 @@ async function updateMyProfile(userId, data) {
   return profile;
 }
 
-module.exports = { createProfile, getMyProfile, updateMyProfile };
+async function getPublicProfile(userId) {
+  if (!mongoose.isValidObjectId(userId)) {
+    fail('Perfil no encontrado', 404);
+  }
+
+  const profile = await Profile.findOne({ user: userId });
+
+  if (!profile) {
+    fail('Perfil no encontrado', 404);
+  }
+
+  return profile;
+}
+
+module.exports = {
+  createProfile,
+  getMyProfile,
+  updateMyProfile,
+  getPublicProfile,
+};

@@ -1,9 +1,13 @@
-const { serializeProfile } = require('./profile.serializer');
+const {
+  serializeProfile,
+  serializePublicProfile,
+} = require('./profile.serializer');
 
 const {
   createProfile,
   getMyProfile,
   updateMyProfile,
+  getPublicProfile,
 } = require('./profile.service');
 
 async function create(req, res, next) {
@@ -42,4 +46,13 @@ async function updateMe(req, res, next) {
   }
 }
 
-module.exports = { create, getMe, updateMe };
+async function getPublic(req, res, next) {
+  try {
+    const profile = await getPublicProfile(req.params.id);
+    res.status(200).json(serializePublicProfile(profile));
+  } catch (error) {
+    next(error);
+  }
+}
+
+module.exports = { create, getMe, updateMe, getPublic };
