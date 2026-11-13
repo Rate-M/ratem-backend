@@ -52,7 +52,7 @@ async function loginUser({ email, password }) {
   const genericError = new Error('Credenciales inválidas');
   genericError.status = 401;
 
-  if (!user) throw genericError;
+  if (!user || user.deletionRequestedAt) throw genericError;
 
   const match = await bcrypt.compare(password, user.passwordHash);
   if (!match) throw genericError;
@@ -69,7 +69,7 @@ async function loginUser({ email, password }) {
 async function forgotPassword({ email }) {
   const user = await User.findOne({ email });
 
-  if (!user) return;
+  if (!user || user.deletionRequestedAt) return;
 
   const rawToken = crypto.randomBytes(32).toString('hex');
   const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
@@ -90,7 +90,7 @@ async function resetPassword({ token, password }) {
     passwordResetExpires: { $gt: new Date() },
   });
 
-  if (!user) {
+  if (!user || user.deletionRequestedAt) {
     const error = new Error('El enlace es inválido o ya expiró');
     error.status = 400;
     throw error;
@@ -113,6 +113,7 @@ async function verifyEmail(token) {
   const user = await User.findOneAndUpdate(
     {
       emailVerificationTokenHash: tokenHash,
+      deletionRequestedAt: null,
       emailVerificationExpires: { $gt: new Date() },
     },
     {

@@ -17,6 +17,8 @@ if (process.env.NODE_ENV !== 'test') app.use(morgan('dev'));
 const authRoutes = require('./modules/auth/auth.routes');
 app.use('/api/auth', authRoutes);
 
+app.use('/api/users', require('./modules/users/user.routes'));
+
 const consentRoutes = require('./modules/consents/consent.routes');
 app.use('/api/consents', consentRoutes);
 

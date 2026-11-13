@@ -1,5 +1,4 @@
 const { validationResult } = require('express-validator');
-const User = require('../users/user.model');
 const { registerUser, loginUser, forgotPassword, resetPassword, verifyEmail} = require('./auth.service');
 
 async function register(req, res, next) {
@@ -85,7 +84,7 @@ async function verifyEmailHandler(req, res, next) {
 
 async function getVerificationStatus(req, res, next) {
   try {
-    const user = await User.findById(req.user.id);
+    const user = req.account;
     if (!user) {
       return res.status(401).json({ message: 'Usuario no encontrado' });
     }

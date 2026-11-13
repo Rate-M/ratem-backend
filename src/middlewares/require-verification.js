@@ -1,8 +1,6 @@
-const User = require('../modules/users/user.model');
-
 async function requireVerification(req, res, next) {
   try {
-    const user = await User.findById(req.user.id);
+    const user = req.account;
 
     if (!user) {
       return res.status(401).json({ message: 'Usuario no encontrado' });

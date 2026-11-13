@@ -1,3 +1,6 @@
+jest.mock('../src/modules/users/user.model', () => ({ findById: jest.fn() }));
+const User = require('../src/modules/users/user.model');
+
 jest.mock('../src/modules/consents/consent.model', () => ({
   updateMany: jest.fn(),
 }));
@@ -20,6 +23,7 @@ const token = jwt.sign(
 
 beforeEach(() => {
   jest.clearAllMocks();
+  User.findById.mockResolvedValue({ role: 'user' });
 
   Consent.updateMany.mockResolvedValue({
     matchedCount: 1,
