@@ -21,6 +21,10 @@ test.each([
   ['2000-05-10', 'approved'],
   ['2012-05-10', 'rejected'],
   [null, 'rejected'],
+  ['2009-11-12', 'rejected'], // Cumple 17 años.
+  ['2008-11-13', 'rejected'], // Falta un día para cumplir 18.
+  ['2008-11-12', 'approved'], // Cumple exactamente 18.
+  ['2008-11-11', 'approved'], // Cumplió 18 ayer.
 ])('El webhook persiste solo el veredicto con fecha %s', async (dateOfBirth, status) => {
   const provider = {
     name: 'didit', verifyWebhook: jest.fn().mockReturnValue(true),
