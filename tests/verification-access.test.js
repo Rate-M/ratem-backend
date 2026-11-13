@@ -79,3 +79,61 @@ test('La consulta de estado rechaza un usuario eliminado', async () => {
     .set('Authorization', `Bearer ${token}`);
   expect(res.status).toBe(401);
 });
+
+test('Refleja aprobación y rechazo sin renovar el token', async () => {
+  for (const status of ['pending', 'approved', 'rejected']) {
+    User.findById.mockResolvedValue({ verificationStatus: status });
+    const res = await request(app).get('/api/auth/verification-status')
+      .set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ verificationStatus: status });
+  }
+});
+
+test.each(['/api/auth/verification-status', '/api/profiles/me'])(
+  'Rechaza tokens expirados en %s', async (path) => {
+    const expired = jwt.sign({ sub: userId }, process.env.JWT_SECRET, { expiresIn: -1 });
+    const res = await request(app).get(path).set('Authorization', `Bearer ${expired}`);
+    expect(res.status).toBe(401);
+    expect(User.findById).not.toHaveBeenCalled();
+    expect(Profile.findOne).not.toHaveBeenCalled();
+  }
+);
+
+test.each(['/api/auth/verification-status', '/api/profiles/me'])(
+  'Propaga errores de base de datos sin permitir acceso en %s', async (path) => {
+    const error = new Error('Base de datos no disponible');
+    User.findById.mockRejectedValue(error);
+    const log = jest.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const res = await request(app).get(path).set('Authorization', `Bearer ${token}`);
+      expect(res.status).toBe(500);
+      expect(Profile.findOne).not.toHaveBeenCalled();
+      expect(log).toHaveBeenCalledWith(error);
+    } finally {
+      log.mockRestore();
+    }
+  }
+);
+
+test.each(['pending', 'rejected'])(
+  'Bloquea antes de procesar archivos aunque el correo esté confirmado: %s', async (status) => {
+    User.findById.mockResolvedValue({ emailVerified: true, verificationStatus: status });
+    const res = await request(app).post('/api/profiles/me')
+      .set('Authorization', `Bearer ${token}`)
+      .attach('photos', Buffer.from('archivo inválido'), {
+        filename: 'documento.txt', contentType: 'text/plain',
+      });
+    expect(res.status).toBe(403);
+    expect(res.body.verificationStatus).toBe(status);
+  }
+);
+
+test('Un rol moderator no evita la verificación', async () => {
+  User.findById.mockResolvedValue({ verificationStatus: 'pending', role: 'moderator' });
+  const moderatorToken = jwt.sign({ sub: userId, role: 'moderator' }, process.env.JWT_SECRET);
+  const res = await request(app).get('/api/profiles/me')
+    .set('Authorization', `Bearer ${moderatorToken}`);
+  expect(res.status).toBe(403);
+  expect(Profile.findOne).not.toHaveBeenCalled();
+});
