@@ -81,3 +81,9 @@ se simulan en memoria. Esto no sustituye una prueba con MongoDB ni valida
 escrituras concurrentes, Didit, respaldos o la interfaz de RM-42.
 
 Ejecutar toda la suite: `npm test -- --runInBand`.
+
+## Mensajes de chat — RM-70
+
+El proceso también elimina mensajes donde la cuenta sea remitente o receptor,
+antes de borrar sus matches. Se conservan los mensajes de parejas ajenas.
+Las pruebas de cascada cubren fallos y reintentos en esta etapa adicional.
