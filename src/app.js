@@ -28,6 +28,9 @@ app.use('/api/profiles', profileRoutes);
 const verificationRoutes = require('./modules/verification/verification.routes');
 app.use('/api/verification', verificationRoutes);
 
+const swipeRoutes = require('./modules/swipes/swipe.routes');
+app.use('/api/swipes', swipeRoutes);
+
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 
 const { uploadDirectory } = require('./modules/profiles/photo.service');
