@@ -28,6 +28,9 @@ app.use('/api/profiles', profileRoutes);
 const verificationRoutes = require('./modules/verification/verification.routes');
 app.use('/api/verification', verificationRoutes);
 
+const placeRoutes = require('./modules/places/place.routes');
+app.use('/api/places', placeRoutes);
+
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 
 const { uploadDirectory } = require('./modules/profiles/photo.service');
