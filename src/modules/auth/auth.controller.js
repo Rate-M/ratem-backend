@@ -1,4 +1,5 @@
 const { validationResult } = require('express-validator');
+const User = require('../users/user.model');
 const { registerUser, loginUser, forgotPassword, resetPassword, verifyEmail} = require('./auth.service');
 
 async function register(req, res, next) {
@@ -82,4 +83,18 @@ async function verifyEmailHandler(req, res, next) {
   }
 }
 
-module.exports = { register, login, forgotPasswordHandler, resetPasswordHandler, verifyEmailHandler };
+async function getVerificationStatus(req, res, next) {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(401).json({ message: 'Usuario no encontrado' });
+    }
+
+    res.set('Cache-Control', 'no-store');
+    res.status(200).json({ verificationStatus: user.verificationStatus || 'pending' });
+  } catch (error) {
+    next(error);
+  }
+}
+
+module.exports = { register, login, forgotPasswordHandler, resetPasswordHandler, verifyEmailHandler, getVerificationStatus };

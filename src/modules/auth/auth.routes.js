@@ -1,12 +1,14 @@
 const { Router } = require('express');
 const { body } = require('express-validator');
 const rateLimit = require('express-rate-limit');
+const authenticate = require('../../middlewares/auth');
 const {
   register,
   login,
   forgotPasswordHandler,
   resetPasswordHandler,
   verifyEmailHandler,
+  getVerificationStatus,
 } = require('./auth.controller');
 
 const router = Router();
@@ -69,5 +71,6 @@ router.post(
   resetPasswordHandler
 );
 router.get('/verify-email', verifyEmailHandler);
+router.get('/verification-status', authenticate, getVerificationStatus);
 
 module.exports = router;

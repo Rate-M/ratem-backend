@@ -1,5 +1,6 @@
 const { Router } = require('express');
 const authenticate = require('../../middlewares/auth');
+const requireVerification = require('../../middlewares/require-verification');
 const upload = require('../../middlewares/upload');
 const {
   create,
@@ -10,7 +11,7 @@ const {
 
 const router = Router();
 
-router.use(authenticate);
+router.use(authenticate, requireVerification);
 
 router.post('/me', upload.array('photos', 6), create);
 router.get('/me', getMe);
