@@ -46,4 +46,16 @@ protegidas aplican el nuevo estado en la siguiente petición.
 
 Las pruebas locales usan resultados simulados. La comprobación con una
 notificación real requiere las credenciales y configuración de Didit.
-RM-37 cubrirá específicamente las fechas límite de 17 y 18 años.
+
+## RM-37 — Pruebas de fechas límite
+
+Las pruebas usan fechas fijas y verifican rechazo al cumplir 17 años y un
+día antes de cumplir 18, y aprobación el día que se cumplen 18 y al día siguiente.
+También cubren cambios de mes y año, nacimientos el 29 de febrero y el mismo
+instante expresado con otra zona horaria. Según la comparación de calendario
+UTC implementada, un nacimiento el 29 de febrero alcanza el límite el 1 de
+marzo cuando el año de evaluación no es bisiesto.
+
+Las pruebas del webhook comprueban que los cuatro casos principales guardan
+el estado esperado tanto en la sesión como en el usuario, usando un proveedor
+simulado. No comprueban el mensaje de la interfaz de T06.2.
