@@ -1,4 +1,4 @@
-jest.mock('../src/modules/users/user.model', () => ({ findById: jest.fn() }));
+jest.mock('../src/modules/users/user.model', () => ({ findById: jest.fn(), exists: jest.fn() }));
 jest.mock('../src/modules/profiles/profile.model', () => ({ findOne: jest.fn() }));
 
 const request = require('supertest');
@@ -29,6 +29,7 @@ function profileData() {
 beforeEach(() => {
   jest.resetAllMocks();
   User.findById.mockResolvedValue({ verificationStatus: 'approved' });
+  User.exists.mockResolvedValue({ _id: ownerId });
   Profile.findOne.mockResolvedValue(profileData());
 });
 
@@ -77,6 +78,14 @@ test('Un perfil inexistente responde 404', async () => {
   const res = await request(app).get(path).set('Authorization', `Bearer ${token}`);
   expect(res.status).toBe(404);
   expect(res.body.message).toBe('Perfil no encontrado');
+});
+
+test('Oculta perfiles de propietarios eliminados o con solicitud pendiente', async () => {
+  User.exists.mockResolvedValue(null);
+  const res = await request(app).get(path).set('Authorization', `Bearer ${token}`);
+  expect(res.status).toBe(404);
+  expect(User.exists).toHaveBeenCalledWith({ _id: ownerId, deletionRequestedAt: null });
+  expect(Profile.findOne).not.toHaveBeenCalled();
 });
 
 test('La ruta /me conserva la consulta al usuario autenticado', async () => {

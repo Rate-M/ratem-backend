@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const Profile = require('./profile.model');
+const User = require('../users/user.model');
 const { savePhotos, deletePhotos } = require('./photo.service');
 const { normalizeProfileData } = require('./profile.validation');
 
@@ -85,6 +86,10 @@ async function updateMyProfile(userId, data) {
 
 async function getPublicProfile(userId) {
   if (!mongoose.isValidObjectId(userId)) {
+    fail('Perfil no encontrado', 404);
+  }
+
+  if (!await User.exists({ _id: userId, deletionRequestedAt: null })) {
     fail('Perfil no encontrado', 404);
   }
 

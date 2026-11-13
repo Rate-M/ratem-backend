@@ -13,6 +13,11 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    deletionRequestedAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
     emailVerified: {
       type: Boolean,
       default: false,
