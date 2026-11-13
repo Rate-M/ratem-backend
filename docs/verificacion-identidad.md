@@ -26,5 +26,24 @@ correo y salud conservan sus reglas actuales. Las rutas de consentimientos
 requieren autenticación, pero siguen disponibles sin identidad aprobada.
 
 No se expone una ruta para que el usuario apruebe su propia identidad.
-La integración con el proveedor y las transiciones de estado quedan pendientes
-de la tarea correspondiente. RM-35 cubrirá la edad del documento.
+
+## RM-35 — Mayoría de edad del documento
+
+El webhook de T04.2 autentica la notificación de Didit. El adaptador extrae
+`dateOfBirth` de `decision.id_verifications[].date_of_birth` y el servicio
+aplica `applyVerificationRules` antes de persistir el veredicto.
+
+Un resultado `approved` solo se conserva si la fecha del documento, en formato
+`YYYY-MM-DD`, corresponde a una persona de al menos 18 años cumplidos.
+Una fecha ausente, inválida, futura o de un menor produce `rejected`.
+Los veredictos rechazados, expirados o sin decisión conservan su comportamiento.
+El cálculo compara año, mes y día en UTC, sin aproximar por días transcurridos.
+No usa la fecha declarada en el perfil como alternativa.
+
+El servicio guarda el estado de la sesión y del usuario; no persiste la fecha
+documental, imágenes ni el resultado completo del proveedor. Las rutas
+protegidas aplican el nuevo estado en la siguiente petición.
+
+Las pruebas locales usan resultados simulados. La comprobación con una
+notificación real requiere las credenciales y configuración de Didit.
+RM-37 cubrirá específicamente las fechas límite de 17 y 18 años.
