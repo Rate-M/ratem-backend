@@ -34,6 +34,9 @@ const configRoutes = require('./modules/config/config.routes');
 app.use('/api/config', configRoutes);
 const swipeRoutes = require('./modules/swipes/swipe.routes');
 app.use('/api/swipes', swipeRoutes);
+const { matchRoutes, notificationRoutes } = require('./modules/matches/match.routes');
+app.use('/api/matches', matchRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 
