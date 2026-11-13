@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const Swipe = require('./swipe.model');
 const User = require('../users/user.model');
 const Profile = require('../profiles/profile.model');
+const { ensureMutualMatch } = require('../matches/match.service');
 
 function fail(message, status = 400) {
   const error = new Error(message);
@@ -35,13 +36,13 @@ function validateSwipeData(data) {
     fail('El perfil indicado no es válido');
   }
 
-  return { to: data.to, action: data.action };
+  return { to: data.to.toLowerCase(), action: data.action };
 }
 
 async function createSwipe(userId, data) {
   const { to, action } = validateSwipeData(data);
 
-  if (to === String(userId)) {
+  if (to === String(userId).toLowerCase()) {
     fail('No puedes evaluar tu propio perfil');
   }
 
@@ -58,11 +59,14 @@ async function createSwipe(userId, data) {
   const existing = await Swipe.findOne({ from: userId, to });
 
   if (existing) {
+    // Recupera una creación de match interrumpida tras persistir el like.
+    if (existing.action === 'like' && action === 'like') await ensureMutualMatch(userId, to);
     fail('Ya evaluaste este perfil', 409);
   }
 
+  let swipe;
   try {
-    return await Swipe.create({ from: userId, to, action });
+    swipe = await Swipe.create({ from: userId, to, action });
   } catch (error) {
     if (error.code === 11000) {
       fail('Ya evaluaste este perfil', 409);
@@ -70,6 +74,8 @@ async function createSwipe(userId, data) {
 
     throw error;
   }
+  const match = action === 'like' ? await ensureMutualMatch(userId, to) : null;
+  return { swipe, match };
 }
 
 module.exports = { serializeSwipe, createSwipe };

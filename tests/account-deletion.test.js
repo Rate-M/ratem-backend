@@ -5,6 +5,7 @@ jest.mock('../src/modules/profiles/profile.model', () => ({ findOne: jest.fn(), 
 jest.mock('../src/modules/consents/consent.model', () => ({ deleteMany: jest.fn() }));
 jest.mock('../src/modules/verification/verification.model', () => ({ deleteMany: jest.fn() }));
 jest.mock('../src/modules/swipes/swipe.model', () => ({ deleteMany: jest.fn() }));
+jest.mock('../src/modules/matches/match.model', () => ({ deleteMany: jest.fn() }));
 jest.mock('../src/modules/profiles/photo.service', () => ({
   deletePhotos: jest.fn(), uploadDirectory: '/tmp/ratem-deletion-test',
 }));
@@ -17,6 +18,7 @@ const Profile = require('../src/modules/profiles/profile.model');
 const Consent = require('../src/modules/consents/consent.model');
 const Session = require('../src/modules/verification/verification.model');
 const Swipe = require('../src/modules/swipes/swipe.model');
+const Match = require('../src/modules/matches/match.model');
 const { deletePhotos } = require('../src/modules/profiles/photo.service');
 const { requestDeletion, processDeletion } = require('../src/modules/users/user-deletion.service');
 const { loginUser } = require('../src/modules/auth/auth.service');
@@ -101,14 +103,16 @@ test('El borrado elimina archivos y datos asociados antes del usuario', async ()
   Consent.deleteMany.mockImplementation(async () => order.push('consent'));
   Session.deleteMany.mockImplementation(async () => order.push('sessions'));
   Swipe.deleteMany.mockImplementation(async () => order.push('swipes'));
+  Match.deleteMany.mockImplementation(async () => order.push('matches'));
   User.deleteOne.mockImplementation(async () => order.push('user'));
   await processDeletion(userId);
-  expect(order).toEqual(['photos', 'profile', 'consent', 'sessions', 'swipes', 'user']);
+  expect(order).toEqual(['photos', 'profile', 'consent', 'sessions', 'swipes', 'matches', 'user']);
   expect(deletePhotos).toHaveBeenCalledWith(['foto-1.png']);
   for (const model of [Profile, Consent, Session]) {
     expect(model.deleteMany).toHaveBeenCalledWith({ user: userId });
   }
   expect(Swipe.deleteMany).toHaveBeenCalledWith({ $or: [{ from: userId }, { to: userId }] });
+  expect(Match.deleteMany).toHaveBeenCalledWith({ $or: [{ userA: userId }, { userB: userId }] });
   expect(User.deleteOne).toHaveBeenCalledWith({ _id: userId, deletionRequestedAt: { $ne: null } });
 });
 
