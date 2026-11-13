@@ -1,3 +1,7 @@
+jest.mock('../src/modules/users/user.model', () => ({
+  findById: jest.fn(),
+}));
+
 jest.mock('../src/modules/profiles/profile.model', () => ({
   findOne: jest.fn(),
   create: jest.fn(),
@@ -13,6 +17,7 @@ jest.mock('../src/modules/profiles/photo.service', () => ({
 const request = require('supertest');
 const jwt = require('jsonwebtoken');
 const Profile = require('../src/modules/profiles/profile.model');
+const User = require('../src/modules/users/user.model');
 const { savePhotos } = require('../src/modules/profiles/photo.service');
 
 process.env.JWT_SECRET = 'clave-exclusiva-para-pruebas';
@@ -32,6 +37,7 @@ const photo = Buffer.from(
 
 beforeEach(() => {
   jest.clearAllMocks();
+  User.findById.mockResolvedValue({ verificationStatus: 'approved' });
 
   Profile.findOne.mockResolvedValue(null);
 
