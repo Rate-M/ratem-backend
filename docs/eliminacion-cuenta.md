@@ -63,3 +63,21 @@ perfil, rutas inválidas y reintentos ante fallos de archivos o base de datos.
 `tests/public-profile.test.js` comprueba que se oculta el perfil de una cuenta
 pendiente. Las dependencias de borrado se simulan: las pruebas no eliminan
 datos reales ni verifican el despliegue del comando.
+
+## RM-43 — Pruebas de borrado en cascada
+
+`tests/deletion-cascade.test.js` agrega escenarios con varias cuentas,
+consentimientos vigentes y revocados y sesiones pendientes, aprobadas y
+rechazadas. Comprueba el estado restante después del proceso, además de
+las llamadas a los modelos.
+
+Valida conservación de otras cuentas, exclusión de cuentas activas,
+reintento tras fallos en cada etapa, repetición sobre una cuenta ya borrada,
+archivos ausentes e interrupción tras borrar solo una foto.
+
+Los archivos son reales y se crean en una carpeta temporal exclusiva que se
+elimina al terminar. Se utiliza la función real `deletePhotos`; las colecciones
+se simulan en memoria. Esto no sustituye una prueba con MongoDB ni valida
+escrituras concurrentes, Didit, respaldos o la interfaz de RM-42.
+
+Ejecutar toda la suite: `npm test -- --runInBand`.
