@@ -2,6 +2,7 @@ jest.mock('../src/modules/users/user.model', () => ({ findOne: jest.fn(), delete
 jest.mock('../src/modules/profiles/profile.model', () => ({ findOne: jest.fn(), deleteMany: jest.fn() }));
 jest.mock('../src/modules/consents/consent.model', () => ({ deleteMany: jest.fn() }));
 jest.mock('../src/modules/verification/verification.model', () => ({ deleteMany: jest.fn() }));
+jest.mock('../src/modules/swipes/swipe.model', () => ({ deleteMany: jest.fn() }));
 jest.mock('../src/modules/profiles/photo.service', () => ({ deletePhotos: jest.fn() }));
 
 const fs = require('fs/promises');
@@ -11,6 +12,7 @@ const User = require('../src/modules/users/user.model');
 const Profile = require('../src/modules/profiles/profile.model');
 const Consent = require('../src/modules/consents/consent.model');
 const Session = require('../src/modules/verification/verification.model');
+const Swipe = require('../src/modules/swipes/swipe.model');
 const photos = require('../src/modules/profiles/photo.service');
 const { processDeletion } = require('../src/modules/users/user-deletion.service');
 
@@ -65,6 +67,10 @@ beforeEach(async () => {
       { user: target, status: 'pending' }, { user: target, status: 'approved' },
       { user: target, status: 'rejected' }, { user: other, status: 'approved' },
     ],
+    swipes: [
+      { from: target, to: other, action: 'like' }, { from: other, to: target, action: 'like' },
+      { from: target, to: active, action: 'pass' }, { from: other, to: active, action: 'like' },
+    ],
   };
   User.findOne.mockImplementation(async (filter) => state.users.find((row) => matches(row, filter)));
   Profile.findOne.mockImplementation(async (filter) => state.profiles.find((row) => matches(row, filter)));
@@ -77,6 +83,10 @@ beforeEach(async () => {
       return { acknowledged: true };
     });
   }
+  Swipe.deleteMany.mockImplementation(async (filter) => {
+    state.swipes = state.swipes.filter((row) => !filter.$or.some((condition) => matches(row, condition)));
+    return { acknowledged: true };
+  });
   photos.deletePhotos.mockImplementation(realPhotos.deletePhotos);
   for (const filename of ['a-1.png', 'a-2.jpg', 'b-1.png']) {
     await fs.writeFile(path.join(realPhotos.uploadDirectory, filename), 'fixture de prueba');
@@ -89,6 +99,7 @@ async function expectTargetDeleted() {
     expect(state[collection].some((row) => row.user === target)).toBe(false);
     expect(state[collection].some((row) => row.user === other)).toBe(true);
   }
+  expect(state.swipes).toEqual([{ from: other, to: active, action: 'like' }]);
   expect((await fs.readdir(realPhotos.uploadDirectory)).sort()).toEqual(['b-1.png']);
   expect(await fs.readFile(path.join(realPhotos.uploadDirectory, 'b-1.png'), 'utf8'))
     .toBe('fixture de prueba');
@@ -99,11 +110,12 @@ test('Borra todos los datos y archivos del solicitante y conserva los de otras c
   await expectTargetDeleted();
 });
 
-test.each(['photos', 'profile', 'consents', 'sessions', 'user'])(
+test.each(['photos', 'profile', 'consents', 'sessions', 'swipes', 'user'])(
   'Se recupera de un fallo en %s sin perder la solicitud', async (step) => {
     const operations = {
       photos: photos.deletePhotos, profile: Profile.deleteMany,
-      consents: Consent.deleteMany, sessions: Session.deleteMany, user: User.deleteOne,
+      consents: Consent.deleteMany, sessions: Session.deleteMany,
+      swipes: Swipe.deleteMany, user: User.deleteOne,
     };
     operations[step].mockRejectedValueOnce(new Error('Fallo temporal'));
     await expect(processDeletion(target)).rejects.toThrow('Fallo temporal');

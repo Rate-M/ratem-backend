@@ -30,6 +30,8 @@ app.use('/api/verification', verificationRoutes);
 
 const configRoutes = require('./modules/config/config.routes');
 app.use('/api/config', configRoutes);
+const swipeRoutes = require('./modules/swipes/swipe.routes');
+app.use('/api/swipes', swipeRoutes);
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 
