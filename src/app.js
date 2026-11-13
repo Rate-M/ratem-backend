@@ -28,6 +28,8 @@ app.use('/api/profiles', profileRoutes);
 const verificationRoutes = require('./modules/verification/verification.routes');
 app.use('/api/verification', verificationRoutes);
 
+const placeRoutes = require('./modules/places/place.routes');
+app.use('/api/places', placeRoutes);
 const configRoutes = require('./modules/config/config.routes');
 app.use('/api/config', configRoutes);
 const swipeRoutes = require('./modules/swipes/swipe.routes');
