@@ -6,6 +6,11 @@ const matchSchema = new mongoose.Schema({
   status: { type: String, enum: ['active', 'ended'], default: 'active' },
   // El match es también el aviso persistente de ambos: no hay escrituras separadas.
   readBy: { type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], default: [] },
+  streak: {
+    current: { type: Number, min: 0, default: 0 },
+    lastCountedDate: { type: String, default: null },
+    unlockedAt: { type: Date, default: null },
+  },
 }, { timestamps: true });
 
 matchSchema.index({ userA: 1, userB: 1 }, { unique: true });
