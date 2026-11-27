@@ -1,7 +1,7 @@
 jest.mock('../src/modules/swipes/swipe.model', () => ({ findOne: jest.fn(), create: jest.fn(), exists: jest.fn() }));
 jest.mock('../src/modules/users/user.model', () => ({ findOne: jest.fn(), countDocuments: jest.fn(), findById: jest.fn() }));
 jest.mock('../src/modules/profiles/profile.model', () => ({ exists: jest.fn() }));
-jest.mock('../src/modules/matches/match.model', () => ({ findOneAndUpdate: jest.fn(), findOne: jest.fn() }));
+jest.mock('../src/modules/matches/match.model', () => ({ findOneAndUpdate: jest.fn(), findOne: jest.fn(), updateOne: jest.fn() }));
 
 const Swipe = require('../src/modules/swipes/swipe.model');
 const User = require('../src/modules/users/user.model');
@@ -98,6 +98,31 @@ test('Una colisión de índice único recupera el match ya creado', async () => 
 test('Un match terminado no se reactiva por un reintento', async () => {
   swipes.push({ from: a, to: b, action: 'like' });
   Match.findOneAndUpdate.mockResolvedValue({ status: 'ended' });
+  expect(await ensureMutualMatch(b, a)).toBeNull();
+});
+
+test('DELETE /api/matches limita la operación a los participantes y permite reintentar', async () => {
+  const matchId = '507f1f77bcf86cd799439013';
+  const outsider = '507f1f77bcf86cd799439014';
+  await createSwipe(a, { to: b, action: 'like' });
+  await createSwipe(b, { to: a, action: 'like' });
+  const [match] = matches.values();
+  match._id = matchId;
+  Match.updateOne.mockImplementation(async (filter, update) => {
+    const participant = filter.$or.some((condition) =>
+      condition.userA === match.userA || condition.userB === match.userB);
+    if (filter._id !== match._id || !participant) return { matchedCount: 0 };
+    Object.assign(match, update.$set);
+    return { matchedCount: 1 };
+  });
+
+  for (const [user, status] of [[outsider, 404], [b, 204], [b, 204]]) {
+    const token = jwt.sign({ sub: user }, process.env.JWT_SECRET);
+    await request(app).delete(`/api/matches/${matchId}`)
+      .set('Authorization', `Bearer ${token}`).expect(status);
+  }
+  expect(match.status).toBe('ended');
+  expect(await ensureMutualMatch(a, b)).toBeNull();
   expect(await ensureMutualMatch(b, a)).toBeNull();
 });
 

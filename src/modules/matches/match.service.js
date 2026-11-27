@@ -66,4 +66,14 @@ async function markNotificationRead(userId, matchId) {
   return result.matchedCount === 1;
 }
 
-module.exports = { ensureMutualMatch, listMatches, markNotificationRead };
+async function endMatch(userId, matchId) {
+  if (typeof matchId !== 'string' || !mongoose.isValidObjectId(matchId)) return false;
+  const result = await Match.updateOne(
+    { _id: matchId, $or: [{ userA: userId }, { userB: userId }] },
+    { $set: { status: 'ended' } },
+    { timestamps: false }
+  );
+  return result.matchedCount === 1;
+}
+
+module.exports = { ensureMutualMatch, listMatches, markNotificationRead, endMatch };

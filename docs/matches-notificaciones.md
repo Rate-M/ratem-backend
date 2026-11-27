@@ -12,8 +12,12 @@ solicitud de eliminación. No se acepta evaluar el propio perfil.
 El servicio guarda los participantes ordenados en `userA` y `userB` y utiliza
 un upsert y un índice único compuesto para evitar parejas duplicadas.
 Se debe asegurar que los índices de Mongoose estén creados en el despliegue.
-Un reintento conserva el match y la lectura de los avisos. Un match con
-estado `ended` no se reactiva; el endpoint para deshacerlo corresponde a RM-76.
+Un reintento conserva el match y la lectura de los avisos.
+
+`DELETE /api/matches/:id` permite a cualquiera de los dos participantes
+terminar el match. Devuelve 204 también al repetir la operación y 404 si el
+match no existe o el solicitante no pertenece a él. El estado `ended`
+impide reactivar la pareja y quita el acceso al chat y a los avisos del match.
 
 Si falla la creación del match después de guardar el like, la petición falla.
 Repetir el mismo like vuelve a intentar el match antes de responder el 409
