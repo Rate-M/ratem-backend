@@ -5,9 +5,14 @@ jest.mock('../src/modules/consents/consent.model', () => ({
   updateMany: jest.fn(),
 }));
 
+jest.mock('../src/modules/profiles/profile.model', () => ({
+  updateMany: jest.fn(),
+}));
+
 const request = require('supertest');
 const jwt = require('jsonwebtoken');
 const Consent = require('../src/modules/consents/consent.model');
+const Profile = require('../src/modules/profiles/profile.model');
 
 process.env.JWT_SECRET = 'clave-exclusiva-para-pruebas';
 
@@ -29,6 +34,29 @@ beforeEach(() => {
     matchedCount: 1,
     modifiedCount: 1,
   });
+
+  Profile.updateMany.mockResolvedValue({ matchedCount: 1, modifiedCount: 1 });
+});
+
+test('Revocar la ubicación borra la ubicación guardada del perfil', async () => {
+  const res = await request(app)
+    .delete('/api/consents/location')
+    .set('Authorization', `Bearer ${token}`);
+
+  expect(res.status).toBe(200);
+  expect(Profile.updateMany).toHaveBeenCalledWith(
+    { user: userId },
+    { $unset: { location: '' }, $set: { locationUpdatedAt: null } }
+  );
+});
+
+test('Revocar el consentimiento biométrico no toca la ubicación', async () => {
+  const res = await request(app)
+    .delete('/api/consents/biometric')
+    .set('Authorization', `Bearer ${token}`);
+
+  expect(res.status).toBe(200);
+  expect(Profile.updateMany).not.toHaveBeenCalled();
 });
 
 test.each(['biometric', 'location'])(

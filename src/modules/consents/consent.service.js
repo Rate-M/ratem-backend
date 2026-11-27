@@ -1,5 +1,6 @@
 const Consent = require('./consent.model');
 const { CURRENT_VERSIONS } = require('../../config/legal');
+const { clearLocation } = require('../profiles/profile.service');
 
 async function recordConsents(userId, types = ['privacy', 'terms']) {
   const docs = types.map((type) => ({
@@ -40,7 +41,7 @@ async function acceptConsent(userId, type) {
 async function revokeConsent(userId, type) {
   validateOptionalType(type);
 
-  return Consent.updateMany(
+  const result = await Consent.updateMany(
     {
       user: userId,
       type,
@@ -50,6 +51,12 @@ async function revokeConsent(userId, type) {
       $set: { revokedAt: new Date() },
     }
   );
+
+  if (type === 'location') {
+    await clearLocation(userId);
+  }
+
+  return result;
 }
 
 async function listConsents(userId) {

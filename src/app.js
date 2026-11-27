@@ -34,6 +34,8 @@ const configRoutes = require('./modules/config/config.routes');
 app.use('/api/config', configRoutes);
 const swipeRoutes = require('./modules/swipes/swipe.routes');
 app.use('/api/swipes', swipeRoutes);
+const discoveryRoutes = require('./modules/discovery/discovery.routes');
+app.use('/api/discovery', discoveryRoutes);
 const { matchRoutes, notificationRoutes } = require('./modules/matches/match.routes');
 app.use('/api/matches', matchRoutes);
 app.use('/api/matches', require('./modules/messages/message.routes'));

@@ -1,6 +1,30 @@
 const mongoose = require('mongoose');
 const { isAdultBirthDate } = require('./profile.validation');
 
+const pointSchema = new mongoose.Schema(
+  {
+    type: {
+      type: String,
+      enum: ['Point'],
+      required: true,
+    },
+    coordinates: {
+      type: [Number],
+      required: true,
+    },
+  },
+  { _id: false }
+);
+
+const preferencesSchema = new mongoose.Schema(
+  {
+    minAge: { type: Number, min: 18, max: 99, default: 18 },
+    maxAge: { type: Number, min: 18, max: 99, default: 99 },
+    maxDistanceKm: { type: Number, min: 1, max: 150, default: 50 },
+  },
+  { _id: false }
+);
+
 const profileSchema = new mongoose.Schema(
   {
     user: {
@@ -101,8 +125,22 @@ const profileSchema = new mongoose.Schema(
         message: 'El perfil debe tener entre 1 y 6 fotos',
       },
     },
+    preferences: {
+      type: preferencesSchema,
+      default: () => ({}),
+    },
+    location: {
+      type: pointSchema,
+      default: undefined,
+    },
+    locationUpdatedAt: {
+      type: Date,
+      default: null,
+    },
   },
   { timestamps: true }
 );
+
+profileSchema.index({ location: '2dsphere' });
 
 module.exports = mongoose.model('Profile', profileSchema);
