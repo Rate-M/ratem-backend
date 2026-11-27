@@ -1,7 +1,7 @@
 const { Router } = require('express');
 const authenticate = require('../../middlewares/auth');
 const requireVerification = require('../../middlewares/require-verification');
-const { listMatches, markNotificationRead } = require('./match.service');
+const { listMatches, markNotificationRead, endMatch } = require('./match.service');
 
 const matchRoutes = Router();
 const notificationRoutes = Router();
@@ -12,6 +12,15 @@ matchRoutes.get('/', async (req, res, next) => {
   try {
     res.set('Cache-Control', 'no-store');
     res.json(await listMatches(req.user.id, { before: req.query.before }));
+  } catch (error) { next(error); }
+});
+
+matchRoutes.delete('/:id', async (req, res, next) => {
+  try {
+    if (!await endMatch(req.user.id, req.params.id)) {
+      return res.status(404).json({ message: 'Match no encontrado' });
+    }
+    res.sendStatus(204);
   } catch (error) { next(error); }
 });
 
