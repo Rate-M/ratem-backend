@@ -3,6 +3,7 @@ const app = require('./app');
 const connectDB = require('./config/db');
 const { createServer } = require('http');
 const { attachSocketServer } = require('./realtime/socket');
+const { startStreakScheduler } = require('./modules/streaks/streak.scheduler');
 require('./modules/consents/consent.service');
 
 const { getStreakThresholdDays } = require('./config/streak');
@@ -20,6 +21,7 @@ connectDB()
   .then(() => {
     const server = createServer(app);
     attachSocketServer(server);
+    startStreakScheduler();
     server.listen(PORT, () => console.log(`API en http://localhost:${PORT}`));
   })
   .catch((err) => {
