@@ -25,9 +25,9 @@ async function getTransporter() {
 async function sendVerificationEmail(email, token ) {
     const mailer = await getTransporter();
 
-    const link =  
-    `http://localhost:${process.env.PORT || 3000}` +
-    `/api/auth/verify-email?token=${encodeURIComponent(token)}`;
+    const link = process.env.CLIENT_URL
+        ? new URL(`/confirmar-correo/${encodeURIComponent(token)}`, process.env.CLIENT_URL).href
+        : `http://localhost:${process.env.PORT || 3000}/api/auth/verify-email?token=${encodeURIComponent(token)}`;
 
     const info = await mailer.sendMail({
         from: '"RateM" <no-reply@ratem.com>',
