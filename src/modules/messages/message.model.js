@@ -10,6 +10,7 @@ const messageSchema = new mongoose.Schema({
 
 messageSchema.index({ match: 1, sender: 1, clientMessageId: 1 }, { unique: true });
 messageSchema.index({ match: 1, _id: -1 });
+messageSchema.index({ match: 1, createdAt: -1, _id: -1 });
 messageSchema.index({ sender: 1 });
 messageSchema.index({ recipient: 1 });
 

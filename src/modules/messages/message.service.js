@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Match = require('../matches/match.model');
 const User = require('../users/user.model');
 const Message = require('./message.model');
@@ -78,4 +79,64 @@ async function getHistory(userId, matchId, before) {
   };
 }
 
-module.exports = { sendMessage, getHistory };
+async function listConversations(userId, before) {
+  const pageSize = 50;
+  let cursorFilter = [];
+  if (before !== undefined) {
+    if (typeof before !== 'string') fail('Cursor inválido', 400);
+    const [timestamp, id, extra] = before.split('_');
+    const date = new Date(timestamp);
+    if (!validId(id) || extra !== undefined || !Number.isFinite(date.getTime()) ||
+      date.toISOString() !== timestamp) fail('Cursor inválido', 400);
+
+    cursorFilter = [{ $match: { $or: [
+      { 'lastMessage.createdAt': { $lt: date } },
+      { 'lastMessage.createdAt': date, 'lastMessage._id': { $lt: new mongoose.Types.ObjectId(id) } },
+    ] } }];
+  }
+
+  const member = new mongoose.Types.ObjectId(userId);
+  const rows = await Match.aggregate([
+    { $match: { status: 'active', $or: [{ userA: member }, { userB: member }] } },
+    { $lookup: {
+      from: User.collection.name,
+      localField: 'userA',
+      foreignField: '_id',
+      pipeline: [{ $match: { verificationStatus: 'approved', deletionRequestedAt: null } }, { $project: { _id: 1 } }],
+      as: 'accountA',
+    } },
+    { $lookup: {
+      from: User.collection.name,
+      localField: 'userB',
+      foreignField: '_id',
+      pipeline: [{ $match: { verificationStatus: 'approved', deletionRequestedAt: null } }, { $project: { _id: 1 } }],
+      as: 'accountB',
+    } },
+    { $match: { 'accountA.0': { $exists: true }, 'accountB.0': { $exists: true } } },
+    { $lookup: {
+      from: Message.collection.name,
+      localField: '_id',
+      foreignField: 'match',
+      pipeline: [{ $sort: { createdAt: -1, _id: -1 } }, { $limit: 1 }],
+      as: 'lastMessage',
+    } },
+    { $unwind: '$lastMessage' },
+    ...cursorFilter,
+    { $sort: { 'lastMessage.createdAt': -1, 'lastMessage._id': -1 } },
+    { $limit: pageSize + 1 },
+  ]);
+
+  const conversations = rows.slice(0, pageSize).map((match) => ({
+    id: match._id,
+    otherUserId: match.userA.equals(member) ? match.userB : match.userA,
+    lastMessage: serializeMessage(match.lastMessage),
+    streakDays: match.streak?.current ?? 0,
+  }));
+  const last = conversations.at(-1)?.lastMessage;
+  return {
+    conversations,
+    nextCursor: rows.length > pageSize ? `${last.createdAt.toISOString()}_${last.id}` : null,
+  };
+}
+
+module.exports = { sendMessage, getHistory, listConversations };
