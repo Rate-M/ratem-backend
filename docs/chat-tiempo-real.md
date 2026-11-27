@@ -92,8 +92,37 @@ cuentas no disponibles, autorización por match, entrega privada, fallos de
 persistencia, deduplicación, límites, vencimiento de conexión e historial.
 
 No valida índices ni persistencia contra MongoDB real, reinicios de procesos,
-ni un despliegue con varios nodos. Las pruebas ampliadas de concurrencia y
-reconexión corresponden a RM-72.
+ni un despliegue con varios nodos.
+
+## RM-72 — Concurrencia y reconexión
+
+`tests/chat-concurrency-reconnection.test.js` agrega 13 casos con clientes y
+servidor Socket.io reales en puertos temporales. Las conexiones se cierran
+al finalizar cada caso. Las cuentas, matches y mensajes se simulan en memoria.
+
+Se comprueban:
+- Envíos simultáneos en ambos sentidos, con recepción de todos los mensajes.
+- Reintentos simultáneos desde dos conexiones del mismo usuario.
+- Uso del mismo `clientMessageId` por distintos participantes.
+- Reconexión automática después de un corte de WebSocket y de polling.
+- Historial de mensajes enviados mientras el receptor estaba desconectado.
+- Desconexión después de persistir y antes de devolver el acuse, seguida de
+  un reintento con el mismo identificador y sin duplicar el registro.
+- Reconexiones repetidas sin duplicar la suscripción a la sala.
+- Rechazo del JWT vencido al reconectar y acceso posterior con otro válido.
+- Rechazo de una cuenta con solicitud de eliminación al reconectar.
+- Bloqueo del envío e historial si el match terminó durante la desconexión.
+- Conservación del límite de envíos después de reconectar.
+- Aislamiento de mensajes e historiales entre dos parejas concurrentes.
+
+La prueba de reintento permite volver a emitir el mismo evento; comprueba
+que el registro y su identificador son únicos. La deduplicación visual
+corresponde al frontend.
+
+Estos casos validan la concurrencia del transporte en un proceso. La
+unicidad y la persistencia de MongoDB siguen simuladas: falta comprobar
+índices y reinicios con una base real. Tampoco son pruebas de carga de
+producción, de redes móviles ni de un despliegue con varios nodos.
 
 Referencias del protocolo utilizado:
 - [Inicialización del servidor Socket.io](https://socket.io/docs/v4/server-initialization/).
