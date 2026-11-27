@@ -38,7 +38,9 @@ const discoveryRoutes = require('./modules/discovery/discovery.routes');
 app.use('/api/discovery', discoveryRoutes);
 const { matchRoutes, notificationRoutes } = require('./modules/matches/match.routes');
 app.use('/api/matches', matchRoutes);
-app.use('/api/matches', require('./modules/messages/message.routes'));
+const { messageRoutes, conversationRoutes } = require('./modules/messages/message.routes');
+app.use('/api/matches', messageRoutes);
+app.use('/api/conversations', conversationRoutes);
 app.use('/api/notifications', notificationRoutes);
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
