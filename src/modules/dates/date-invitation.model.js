@@ -11,6 +11,9 @@ const schema = new mongoose.Schema({
   proposedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   revision: { type: Number, default: 0 },
   status: { type: String, enum: ['pending', 'accepted', 'declined'], default: 'pending' },
+  confirmedAt: { type: Date, default: null },
+  confirmationMethod: { type: String, enum: ['location', 'manual', null], default: null },
+  reviewDeadline: { type: Date, default: null },
 }, { timestamps: true });
 
 schema.index({ match: 1, _id: -1 });

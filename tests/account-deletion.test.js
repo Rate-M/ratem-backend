@@ -1,4 +1,5 @@
 jest.mock('../src/modules/dates/date-invitation.model', () => ({ deleteMany: jest.fn() }));
+jest.mock('../src/modules/dates/date-checkin.model', () => ({ deleteMany: jest.fn() }));
 jest.mock('../src/modules/users/user.model', () => ({
   findById: jest.fn(), findOne: jest.fn(), findOneAndUpdate: jest.fn(), deleteOne: jest.fn(),
 }));
@@ -22,6 +23,7 @@ const Session = require('../src/modules/verification/verification.model');
 const Swipe = require('../src/modules/swipes/swipe.model');
 const Match = require('../src/modules/matches/match.model');
 const Message = require('../src/modules/messages/message.model');
+const DateCheckin = require('../src/modules/dates/date-checkin.model');
 const { deletePhotos } = require('../src/modules/profiles/photo.service');
 const { requestDeletion, processDeletion } = require('../src/modules/users/user-deletion.service');
 const { loginUser } = require('../src/modules/auth/auth.service');
@@ -107,10 +109,12 @@ test('El borrado elimina archivos y datos asociados antes del usuario', async ()
   Session.deleteMany.mockImplementation(async () => order.push('sessions'));
   Swipe.deleteMany.mockImplementation(async () => order.push('swipes'));
   Message.deleteMany.mockImplementation(async () => order.push('messages'));
+  DateCheckin.deleteMany.mockImplementation(async () => order.push('checkins'));
   Match.deleteMany.mockImplementation(async () => order.push('matches'));
   User.deleteOne.mockImplementation(async () => order.push('user'));
   await processDeletion(userId);
-  expect(order).toEqual(['photos', 'profile', 'consent', 'sessions', 'swipes', 'messages', 'matches', 'user']);
+  expect(order).toEqual(['photos', 'profile', 'consent', 'sessions', 'swipes', 'messages', 'checkins', 'matches', 'user']);
+  expect(DateCheckin.deleteMany).toHaveBeenCalledWith({ participants: userId });
   expect(deletePhotos).toHaveBeenCalledWith(['foto-1.png']);
   for (const model of [Profile, Consent, Session]) {
     expect(model.deleteMany).toHaveBeenCalledWith({ user: userId });
