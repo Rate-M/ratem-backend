@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const Decision = require('../moderation/decision.schema');
 
 const placeSchema = new mongoose.Schema(
   {
@@ -8,6 +9,8 @@ const placeSchema = new mongoose.Schema(
       maxlength: 100,
       default: null,
     },
+    address: { type: String, maxlength: 200, default: '' },
+    hours: { type: String, maxlength: 100, default: '' },
     category: {
       type: String,
       enum: ['restaurante', 'cafe', 'parque'],
@@ -38,6 +41,7 @@ const placeSchema = new mongoose.Schema(
       ref: 'User',
       default: null,
     },
+    moderation: { type: Decision, default: null },
     status: {
       type: String,
       enum: ['pending', 'approved', 'rejected'],

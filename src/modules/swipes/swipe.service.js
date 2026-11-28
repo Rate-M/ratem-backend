@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const Swipe = require('./swipe.model');
+const { availableAccount } = require('../users/account-status');
 const User = require('../users/user.model');
 const Profile = require('../profiles/profile.model');
 const { ensureMutualMatch } = require('../matches/match.service');
@@ -50,6 +51,7 @@ async function createSwipe(userId, data) {
     _id: to,
     verificationStatus: 'approved',
     deletionRequestedAt: null,
+    ...availableAccount(),
   });
 
   if (!target || !await Profile.exists({ user: to })) {

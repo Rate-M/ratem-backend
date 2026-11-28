@@ -1,5 +1,6 @@
 const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
+const { isSuspended } = require('../modules/users/account-status');
 const User = require('../modules/users/user.model');
 const { sendMessage } = require('../modules/messages/message.service');
 
@@ -55,7 +56,7 @@ function attachSocketServer(httpServer) {
     try {
       const identity = verifyToken(socket.handshake.auth?.token);
       const user = await User.findById(identity.userId);
-      if (!user || user.deletionRequestedAt || user.verificationStatus !== 'approved') {
+      if (!user || user.deletionRequestedAt || isSuspended(user) || user.verificationStatus !== 'approved') {
         const error = new Error('Cuenta no disponible para chat');
         error.status = 403;
         throw error;

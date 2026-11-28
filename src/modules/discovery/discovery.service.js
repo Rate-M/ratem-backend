@@ -1,3 +1,4 @@
+const { availableAccount } = require('../users/account-status');
 const mongoose = require('mongoose');
 const Profile = require('../profiles/profile.model');
 const Swipe = require('../swipes/swipe.model');
@@ -107,10 +108,13 @@ function buildDiscoveryPipeline(me, excludedUserIds, today, limit) {
         localField: 'user',
         foreignField: '_id',
         as: 'account',
-        pipeline: [{ $project: { verificationStatus: 1, deletionRequestedAt: 1 } }],
+        pipeline: [
+          { $match: { verificationStatus: 'approved', deletionRequestedAt: null, ...availableAccount() } },
+          { $project: { _id: 1 } },
+        ],
       },
     },
-    { $match: { 'account.verificationStatus': 'approved', 'account.deletionRequestedAt': null } },
+    { $match: { 'account.0': { $exists: true } } },
     { $limit: limit },
     { $project: { account: 0 } },
   ];

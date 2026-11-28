@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const Match = require('../matches/match.model');
+const { availableAccount } = require('../users/account-status');
 const User = require('../users/user.model');
 const Message = require('./message.model');
 
@@ -34,7 +35,7 @@ async function authorizeChat(userId, matchId) {
 
   const available = await User.countDocuments({
     _id: { $in: [match.userA, match.userB] },
-    verificationStatus: 'approved', deletionRequestedAt: null,
+    verificationStatus: 'approved', deletionRequestedAt: null, ...availableAccount(),
   });
   if (available !== 2) fail('Conversación no disponible', 403);
   return match;
@@ -102,14 +103,14 @@ async function listConversations(userId, before) {
       from: User.collection.name,
       localField: 'userA',
       foreignField: '_id',
-      pipeline: [{ $match: { verificationStatus: 'approved', deletionRequestedAt: null } }, { $project: { _id: 1 } }],
+      pipeline: [{ $match: { verificationStatus: 'approved', deletionRequestedAt: null, ...availableAccount() } }, { $project: { _id: 1 } }],
       as: 'accountA',
     } },
     { $lookup: {
       from: User.collection.name,
       localField: 'userB',
       foreignField: '_id',
-      pipeline: [{ $match: { verificationStatus: 'approved', deletionRequestedAt: null } }, { $project: { _id: 1 } }],
+      pipeline: [{ $match: { verificationStatus: 'approved', deletionRequestedAt: null, ...availableAccount() } }, { $project: { _id: 1 } }],
       as: 'accountB',
     } },
     { $match: { 'accountA.0': { $exists: true }, 'accountB.0': { $exists: true } } },
