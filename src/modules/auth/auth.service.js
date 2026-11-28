@@ -3,7 +3,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const User = require('../users/user.model');
-const { sendVerificationEmail } = require('../../config/mail');
+const { sendVerificationEmail, sendPasswordResetEmail } = require('../../config/mail');
 const { recordConsents } = require('../consents/consent.service');
 
 
@@ -85,8 +85,12 @@ async function forgotPassword({ email }) {
   user.passwordResetExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hora
   await user.save();
 
-  const resetLink = `${process.env.CLIENT_URL}/recuperar/${rawToken}`;
-  console.log('Enlace de recuperación (temporal, solo en consola):', resetLink);
+  try {
+    await sendPasswordResetEmail(user.email, rawToken);
+  } catch {
+    // La respuesta HTTP sigue siendo la misma para correos registrados y desconocidos.
+    console.error('No se pudo enviar el correo de recuperación.');
+  }
 }
 
 async function resetPassword({ token, password }) {

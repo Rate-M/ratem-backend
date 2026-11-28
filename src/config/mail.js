@@ -1,19 +1,18 @@
-const { text } = require('express');
 const nodemailer = require('nodemailer');
 
 let transporter;
 
 async function getTransporter() {
     if (!transporter) {
-        const testAcount = await nodemailer.createTestAccount();
+        const testAccount = await nodemailer.createTestAccount();
 
         transporter = nodemailer.createTransport({
-            host: testAcount.smtp.host,
-            port: testAcount.smtp.port,
-            secure: testAcount.smtp.secure,
+            host: testAccount.smtp.host,
+            port: testAccount.smtp.port,
+            secure: testAccount.smtp.secure,
             auth: {
-                user: testAcount.user,
-                pass: testAcount.pass,
+                user: testAccount.user,
+                pass: testAccount.pass,
             },
         });
     }
@@ -48,4 +47,19 @@ async function sendVerificationEmail(email, token ) {
     )
 }
 
-module.exports = { getTransporter, sendVerificationEmail };     
+async function sendPasswordResetEmail(email, token) {
+    const base = process.env.CLIENT_URL || 'http://localhost:5173';
+    const link = new URL('/cambiar-contrasena/' + encodeURIComponent(token), base).href;
+    const mailer = await getTransporter();
+    const info = await mailer.sendMail({
+        from: '"RateM" <no-reply@ratem.com>',
+        to: email,
+        subject: 'Restablece tu contraseña en RateM',
+        text: 'Restablece tu contraseña con este enlace, válido por una hora: ' + link +
+            '\nSi no solicitaste el cambio, puedes ignorar este correo.',
+    });
+    const preview = nodemailer.getTestMessageUrl(info);
+    if (preview) console.log('Correo de recuperación de prueba:', preview);
+}
+
+module.exports = { getTransporter, sendVerificationEmail, sendPasswordResetEmail };

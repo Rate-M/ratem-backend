@@ -1,3 +1,11 @@
+const mockSendMail = jest.fn(async () => ({}));
+
+jest.mock('nodemailer', () => ({
+  createTestAccount: jest.fn(async () => ({ smtp: { host: 'localhost', port: 1025 }, user: 'test', pass: 'test' })),
+  createTransport: jest.fn(() => ({ sendMail: mockSendMail })),
+  getTestMessageUrl: jest.fn(() => 'https://ethereal.email/message/test-preview'),
+}));
+
 jest.mock('../src/modules/users/user.model', () => ({
   findOne: jest.fn(),
 }));
@@ -64,15 +72,10 @@ test('Recupera la contraseña y permite entrar solo con la nueva', async () => {
 
   expect(forgot.status).toBe(200);
 
-  const log = logSpy.mock.calls.find(
-    (args) =>
-      typeof args[1] === 'string' &&
-      args[1].includes('/recuperar/')
-  );
-
-  expect(log).toBeDefined();
-
-  const token = log[1].split('/recuperar/')[1];
+  const [email] = mockSendMail.mock.calls[0];
+  expect(email).toMatchObject({ to: user.email, subject: 'Restablece tu contraseña en RateM' });
+  const [, token] = email.text.match(/http:\/\/localhost:5173\/cambiar-contrasena\/([a-f0-9]{64})/);
+  expect(logSpy).toHaveBeenCalledWith('Correo de recuperación de prueba:', 'https://ethereal.email/message/test-preview');
 
   expect(token).toMatch(/^[a-f0-9]{64}$/);
   expect(user.passwordResetTokenHash).toBe(hashToken(token));
@@ -153,4 +156,19 @@ test('Correo inexistente recibe una respuesta genérica', async () => {
   );
   expect(user.save).not.toHaveBeenCalled();
   expect(logSpy).not.toHaveBeenCalled();
+});
+test('Mantiene la respuesta genérica del servicio cuando falla SMTP', async () => {
+  const { forgotPassword } = require('../src/modules/auth/auth.service');
+  const logError = jest.spyOn(console, 'error').mockImplementation(() => {});
+  try {
+    const unknown = await forgotPassword({ email: 'unknown@example.com' });
+    expect(mockSendMail).not.toHaveBeenCalled();
+
+    mockSendMail.mockRejectedValueOnce(new Error('SMTP no disponible'));
+    await expect(forgotPassword({ email: user.email })).resolves.toBe(unknown);
+    expect(mockSendMail).toHaveBeenCalledTimes(1);
+    expect(logError).toHaveBeenCalledWith('No se pudo enviar el correo de recuperación.');
+  } finally {
+    logError.mockRestore();
+  }
 });
