@@ -13,6 +13,7 @@ const schema = new mongoose.Schema({
   status: { type: String, enum: ['pending', 'accepted', 'declined'], default: 'pending' },
   confirmedAt: { type: Date, default: null },
   confirmationMethod: { type: String, enum: ['location', 'manual', null], default: null },
+  reviewsPublishedAt: { type: Date, default: null },
   reviewDeadline: { type: Date, default: null },
 }, { timestamps: true });
 

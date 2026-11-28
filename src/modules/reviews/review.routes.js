@@ -1,7 +1,7 @@
 const { Router } = require('express');
 const authenticate = require('../../middlewares/auth');
 const requireVerification = require('../../middlewares/require-verification');
-const { createReview, getReviewStatus, serializeReview } = require('./review.service');
+const { createReview, getReviewStatus } = require('./review.service');
 
 const router = Router();
 router.use(authenticate, requireVerification);
@@ -26,7 +26,7 @@ router.get('/:matchId/invitations/:invitationId/review', async (req, res, next) 
 router.post('/:matchId/invitations/:invitationId/review', async (req, res, next) => {
   try {
     const review = await createReview(req.user.id, req.params.matchId, req.params.invitationId, req.body);
-    res.status(201).json(serializeReview(review));
+    res.status(201).json(review);
   } catch (error) {
     handleError(error, res, next);
   }

@@ -7,6 +7,7 @@ const app = require('../src/app');
 const User = require('../src/modules/users/user.model');
 const Match = require('../src/modules/matches/match.model');
 const Place = require('../src/modules/places/place.model');
+const Review = require('../src/modules/reviews/review.model');
 const DateInvitation = require('../src/modules/dates/date-invitation.model');
 
 let server;
@@ -15,7 +16,7 @@ beforeAll(async () => {
   process.env.JWT_SECRET = 'date-invitation-test';
   server = await MongoMemoryServer.create();
   await mongoose.connect(server.getUri(), { runtimeAdapters: { os } });
-  await Promise.all([User.init(), Match.init(), Place.init(), DateInvitation.init()]);
+  await Promise.all([User.init(), Match.init(), Place.init(), DateInvitation.init(), Review.init()]);
 }, 600000);
 
 afterAll(async () => {
@@ -78,4 +79,37 @@ test('guarda la invitación para ambos participantes solo con racha y lugar vál
   const second = await send(sender).expect(201);
   const declined = await reply(recipient, { action: 'decline', revision: 0 }, second.body.id).expect(200);
   expect(declined.body).toMatchObject({ status: 'declined', revision: 1, awaitingYourResponse: false });
+});
+
+test('publica ambas reseñas cuando los dos califican y conserva las reseñas unilaterales privadas', async () => {
+  const [a, b] = await User.insertMany(['review-a', 'review-b'].map((name) => ({
+    email: name + '@example.com', passwordHash: 'hash', verificationStatus: 'approved',
+  })));
+  const match = await Match.create({ userA: a._id, userB: b._id });
+  const invitation = await DateInvitation.create({
+    match: match._id, sender: a._id, recipient: b._id, status: 'accepted',
+    placeId: 'google-test-place', coordinates: [-103.44, 25.54], startsAt: new Date(),
+    confirmedAt: new Date(), confirmationMethod: 'location',
+  });
+  const path = '/api/matches/' + match._id + '/invitations/' + invitation._id + '/review';
+  const auth = (user) => 'Bearer ' + jwt.sign({ sub: String(user._id) }, process.env.JWT_SECRET);
+  const submit = (user, rating, comment) => request(app).post(path).set('Authorization', auth(user)).send({ rating, comment });
+
+  const first = await submit(a, 5, 'Buena conversación').expect(201);
+  expect(first.body.status).toBe('hidden');
+  const before = await request(app).get(path).set('Authorization', auth(b)).expect(200);
+  expect(before.body.otherReview).toBeNull();
+  const { getPublishedReviews } = require('../src/modules/reviews/review.service');
+  expect((await getPublishedReviews(String(b._id))).reviews).toEqual([]);
+
+  const second = await submit(b, 4, 'Muy puntual').expect(201);
+  expect(second.body.status).toBe('published');
+  const after = await request(app).get(path).set('Authorization', auth(a)).expect(200);
+  expect(after.body.yourReview.publishedAt).toBe(second.body.publishedAt);
+  expect(after.body.otherReview.comment).toBe('Muy puntual');
+  expect(await getPublishedReviews(String(b._id))).toMatchObject({ averageRating: 5, reviewCount: 1 });
+
+  await submit(a, 5, 'Buena conversación').expect(201);
+  await submit(a, 1, 'Cambio').expect(409);
+  expect(await Review.countDocuments({ dateEvent: invitation._id })).toBe(2);
 });

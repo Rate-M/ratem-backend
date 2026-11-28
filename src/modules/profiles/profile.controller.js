@@ -1,3 +1,4 @@
+const { getPublishedReviews } = require('../reviews/review.service');
 const {
   serializeProfile,
   serializePublicProfile,
@@ -52,7 +53,7 @@ async function updateMe(req, res, next) {
 async function getPublic(req, res, next) {
   try {
     const profile = await getPublicProfile(req.params.id);
-    res.status(200).json(serializePublicProfile(profile));
+    res.status(200).json({ ...serializePublicProfile(profile), ...await getPublishedReviews(req.params.id) });
   } catch (error) {
     next(error);
   }

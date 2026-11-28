@@ -18,13 +18,13 @@ function reviewDeadline(invitation) {
     : new Date(new Date(invitation.startsAt).getTime() + REVIEW_WINDOW_MS);
 }
 
-function serializeReview(review) {
+function serializeReview(review, publishedAt = null) {
   return {
     id: review._id,
     rating: review.rating,
     comment: review.comment,
-    status: review.status,
-    publishedAt: review.publishedAt,
+    status: publishedAt ? 'published' : 'hidden',
+    publishedAt,
     createdAt: review.createdAt,
   };
 }
@@ -90,36 +90,74 @@ async function createReview(userId, matchId, invitationId, data, now = new Date(
     ? invitation.recipient
     : invitation.sender;
 
+  let review;
   try {
-    return await Review.create({
-      dateEvent: invitation._id,
-      match: invitation.match,
-      author: userId,
-      subject,
-      rating,
-      comment,
+    review = await Review.create({
+      dateEvent: invitation._id, match: invitation.match, author: userId, subject, rating, comment,
     });
   } catch (error) {
-    if (error.code === 11000) {
+    if (error.code !== 11000) throw error;
+    review = await Review.findOne({ dateEvent: invitation._id, author: userId }).lean();
+    if (!review || review.rating !== rating || review.comment !== comment) {
       fail('Ya calificaste esta cita', 409, 'ALREADY_REVIEWED');
     }
-
-    throw error;
   }
+
+  const publishedAt = await publishWhenMutual(invitation);
+  return serializeReview(review, publishedAt);
+}
+
+async function publishWhenMutual(invitation) {
+  if (!invitation.confirmedAt) return null;
+  if (invitation.reviewsPublishedAt) return invitation.reviewsPublishedAt;
+  const reviews = await Review.find({
+    dateEvent: invitation._id, author: { $in: [invitation.sender, invitation.recipient] },
+    createdAt: { $lte: reviewDeadline(invitation) },
+  }).select('createdAt').lean();
+  if (reviews.length !== 2) return null;
+
+  const publishedAt = new Date(Math.max(...reviews.map((review) => review.createdAt.getTime())));
+  await DateInvitation.updateOne(
+    { _id: invitation._id, reviewsPublishedAt: null }, { $set: { reviewsPublishedAt: publishedAt } }
+  );
+  return publishedAt;
 }
 
 async function getReviewStatus(userId, matchId, invitationId, now = new Date()) {
   const invitation = await findReviewableInvitation(userId, matchId, invitationId);
   const reviews = await Review.find({ dateEvent: invitation._id }).lean();
+  const publishedAt = await publishWhenMutual(invitation);
   const mine = reviews.find((review) => String(review.author) === String(userId));
+  const other = reviews.find((review) => String(review.author) !== String(userId));
   const deadline = reviewDeadline(invitation);
 
   return {
     canReview: Boolean(invitation.confirmedAt) && !mine && now <= deadline,
     reviewDeadline: invitation.confirmedAt ? deadline : null,
-    yourReview: mine ? serializeReview(mine) : null,
-    otherReviewed: reviews.some((review) => String(review.author) !== String(userId)),
+    yourReview: mine ? serializeReview(mine, publishedAt) : null,
+    otherReview: publishedAt && other ? serializeReview(other, publishedAt) : null,
+    otherReviewed: Boolean(other),
   };
 }
 
-module.exports = { createReview, getReviewStatus, serializeReview };
+async function getPublishedReviews(subject) {
+  const rows = await Review.aggregate([
+    { $match: { subject: new mongoose.Types.ObjectId(subject), hiddenByReports: { $ne: true } } },
+    { $lookup: { from: DateInvitation.collection.name, localField: 'dateEvent', foreignField: '_id', as: 'date' } },
+    { $unwind: '$date' },
+    { $match: { 'date.reviewsPublishedAt': { $type: 'date' } } },
+    { $sort: { 'date.reviewsPublishedAt': -1, _id: -1 } },
+    { $facet: {
+      items: [{ $limit: 20 }, { $project: { rating: 1, comment: 1, publishedAt: '$date.reviewsPublishedAt' } }],
+      summary: [{ $group: { _id: null, count: { $sum: 1 }, average: { $avg: '$rating' } } }],
+    } },
+  ]);
+  const [result] = rows;
+  return {
+    reviews: result.items.map(({ _id, ...entry }) => ({ id: _id, ...entry })),
+    reviewCount: result.summary[0]?.count ?? 0,
+    averageRating: result.summary[0]?.average ?? null,
+  };
+}
+
+module.exports = { getPublishedReviews, createReview, getReviewStatus, serializeReview };
