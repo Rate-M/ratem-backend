@@ -70,13 +70,49 @@ async function sendMessage(userId, data) {
 
 async function getHistory(userId, matchId, before) {
   if (before !== undefined && !validId(before)) fail('Cursor inválido', 400);
-  await authorizeChat(userId, matchId);
+  const match = await authorizeChat(userId, matchId);
+  const own = String(match.userA) === userId ? 'userA' : 'userB';
+  const other = own === 'userA' ? 'userB' : 'userA';
   const filter = { match: matchId };
   if (before) filter._id = { $lt: before };
   const rows = await Message.find(filter).sort({ _id: -1 }).limit(51).lean();
   return {
     messages: rows.slice(0, 50).map(serializeMessage),
+    readThrough: {
+      me: match.chatReadThrough?.[own] ?? null,
+      other: match.chatReadThrough?.[other] ?? null,
+    },
     nextCursor: rows.length > 50 ? String(rows[49]._id) : null,
+  };
+}
+
+async function markChatRead(userId, data) {
+  if (!data || typeof data !== 'object' || Array.isArray(data) ||
+    Object.keys(data).some((key) => !['matchId', 'messageId'].includes(key)) || !validId(data.messageId)) {
+    fail('Envía el identificador del mensaje leído', 400);
+  }
+
+  const match = await authorizeChat(userId, data.matchId);
+  const own = String(match.userA) === userId ? 'userA' : 'userB';
+  const other = own === 'userA' ? 'userB' : 'userA';
+  const message = await Message.findOne({
+    _id: data.messageId, match: match._id, recipient: userId, sender: match[other],
+  }).select('_id').lean();
+  if (!message) fail('Mensaje no encontrado', 404);
+
+  const previous = await Match.findOneAndUpdate(
+    { _id: match._id, status: 'active', [own]: userId },
+    { $max: { ['chatReadThrough.' + own]: message._id } },
+    { returnDocument: 'before', timestamps: false }
+  ).lean();
+  if (!previous) fail('Conversación no encontrada', 404);
+
+  const previousId = previous.chatReadThrough?.[own];
+  const advanced = !previousId || String(previousId) < String(message._id);
+  return {
+    advanced,
+    otherUserId: match[other],
+    receipt: { matchId: match._id, readerId: userId, messageId: advanced ? message._id : previousId },
   };
 }
 
@@ -140,4 +176,4 @@ async function listConversations(userId, before) {
   };
 }
 
-module.exports = { sendMessage, getHistory, listConversations };
+module.exports = { sendMessage, getHistory, listConversations, markChatRead };

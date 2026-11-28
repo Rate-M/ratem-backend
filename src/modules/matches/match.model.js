@@ -6,6 +6,10 @@ const matchSchema = new mongoose.Schema({
   status: { type: String, enum: ['active', 'ended'], default: 'active' },
   // El match es también el aviso persistente de ambos: no hay escrituras separadas.
   readBy: { type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], default: [] },
+  chatReadThrough: {
+    userA: { type: mongoose.Schema.Types.ObjectId, default: null },
+    userB: { type: mongoose.Schema.Types.ObjectId, default: null },
+  },
   streak: {
     current: { type: Number, min: 0, default: 0 },
     lastCountedDate: { type: String, default: null },

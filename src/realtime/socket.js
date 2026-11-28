@@ -2,7 +2,7 @@ const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
 const { isSuspended } = require('../modules/users/account-status');
 const User = require('../modules/users/user.model');
-const { sendMessage } = require('../modules/messages/message.service');
+const { sendMessage, markChatRead } = require('../modules/messages/message.service');
 
 function verifyToken(token) {
   try {
@@ -92,6 +92,20 @@ function attachSocketServer(httpServer) {
         // Persistencia antes de emitir y confirmar; todas las pestañas reciben el mismo id.
         io.to([`user:${message.senderId}`, `user:${message.recipientId}`]).emit('message:new', message);
         acknowledge({ ok: true, message });
+      } catch (error) {
+        acknowledge({ ok: false, error: errorData(error) });
+        if (error.status === 401) socket.disconnect(true);
+      }
+    });
+
+    socket.on('message:read', async (data, acknowledge) => {
+      if (typeof acknowledge !== 'function') return;
+      try {
+        verifyToken(socket.handshake.auth?.token);
+        consume('read:' + userId);
+        const { advanced, otherUserId, receipt } = await markChatRead(userId, data);
+        if (advanced) io.to([`user:${userId}`, `user:${otherUserId}`]).emit('message:read', receipt);
+        acknowledge({ ok: true, receipt });
       } catch (error) {
         acknowledge({ ok: false, error: errorData(error) });
         if (error.status === 401) socket.disconnect(true);
