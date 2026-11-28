@@ -4,13 +4,15 @@ const authenticate = require('../../middlewares/auth');
 const requireVerification = require('../../middlewares/require-verification');
 const Message = require('../messages/message.model');
 const Profile = require('../profiles/profile.model');
+const Review = require('../reviews/review.model');
+const DateInvitation = require('../dates/date-invitation.model');
 const Report = require('./report.model');
 const { availableAccount } = require('../users/account-status');
 const User = require('../users/user.model');
 
 const reportRoutes = Router();
 const moderationRoutes = Router();
-const types = ['message', 'profile', 'photo'];
+const types = ['message', 'profile', 'photo', 'review'];
 const statuses = ['pending', 'in_review', 'resolved'];
 const objectId = (value) => typeof value === 'string' && /^[a-f0-9]{24}$/i.test(value);
 
@@ -41,6 +43,11 @@ reportRoutes.post('/', authenticate, requireVerification, async (req, res, next)
     if (type === 'message') {
       const message = await Message.findOne({ _id: targetId, recipient: creator }).select('sender').lean();
       reportedUser = message?.sender;
+    } else if (type === 'review') {
+      const review = await Review.findOne({ _id: targetId, author: { $ne: creator } }).select('author dateEvent').lean();
+      if (review && await DateInvitation.exists({ _id: review.dateEvent, reviewsPublishedAt: { $type: 'date' } })) {
+        reportedUser = review.author;
+      }
     } else {
       const profile = await Profile.findOne({
         user: targetId, ...(type === 'photo' ? { photos: photo } : {}),
@@ -130,6 +137,10 @@ moderationRoutes.get('/reports/:id', async (req, res, next) => {
         _id: report.target, sender: report.reportedUser, recipient: report.reporter,
       }).select('text createdAt').lean();
       if (message) content = { text: message.text, createdAt: message.createdAt };
+    } else if (report.type === 'review') {
+      const review = await Review.findOne({ _id: report.target, author: report.reportedUser })
+        .select('comment rating').lean();
+      if (review) content = { text: review.comment, rating: review.rating };
     } else if (report.type === 'photo') {
       if (await Profile.exists({ user: report.reportedUser, photos: report.photo })) content = { photo: report.photo };
     } else {

@@ -1,8 +1,10 @@
 const mongoose = require('mongoose');
+const Report = require('../moderation/report.model');
 const Review = require('./review.model');
 const DateInvitation = require('../dates/date-invitation.model');
 const { assertReviewCommentAllowed } = require('./review-moderation');
 
+const HIDE_AFTER_REPORTS = 3;
 const REVIEW_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 
 function fail(message, status = 400, code) {
@@ -129,20 +131,28 @@ async function getReviewStatus(userId, matchId, invitationId, now = new Date()) 
   const publishedAt = await publishWhenMutual(invitation);
   const mine = reviews.find((review) => String(review.author) === String(userId));
   const other = reviews.find((review) => String(review.author) !== String(userId));
+  const visibleToParticipant = publishedAt && other &&
+    await Report.countDocuments({ type: 'review', target: other._id }) < HIDE_AFTER_REPORTS;
   const deadline = reviewDeadline(invitation);
 
   return {
     canReview: Boolean(invitation.confirmedAt) && !mine && now <= deadline,
     reviewDeadline: invitation.confirmedAt ? deadline : null,
     yourReview: mine ? serializeReview(mine, publishedAt) : null,
-    otherReview: publishedAt && other ? serializeReview(other, publishedAt) : null,
+    otherReview: visibleToParticipant ? serializeReview(other, publishedAt) : null,
     otherReviewed: Boolean(other),
   };
 }
 
 async function getPublishedReviews(subject) {
   const rows = await Review.aggregate([
-    { $match: { subject: new mongoose.Types.ObjectId(subject), hiddenByReports: { $ne: true } } },
+    { $match: { subject: new mongoose.Types.ObjectId(subject) } },
+    { $lookup: {
+      from: Report.collection.name, localField: '_id', foreignField: 'target',
+      pipeline: [{ $match: { type: 'review' } }, { $limit: HIDE_AFTER_REPORTS }, { $project: { _id: 1 } }],
+      as: 'reportFlags',
+    } },
+    { $match: { ['reportFlags.' + (HIDE_AFTER_REPORTS - 1)]: { $exists: false } } },
     { $lookup: { from: DateInvitation.collection.name, localField: 'dateEvent', foreignField: '_id', as: 'date' } },
     { $unwind: '$date' },
     { $match: { 'date.reviewsPublishedAt': { $type: 'date' } } },

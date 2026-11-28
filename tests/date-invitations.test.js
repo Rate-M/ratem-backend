@@ -112,4 +112,18 @@ test('publica ambas reseñas cuando los dos califican y conserva las reseñas un
   await submit(a, 5, 'Buena conversación').expect(201);
   await submit(a, 1, 'Cambio').expect(409);
   expect(await Review.countDocuments({ dateEvent: invitation._id })).toBe(2);
+
+  const reporters = await User.insertMany(['reader-1', 'reader-2', 'reader-3'].map((name) => ({
+    email: name + '@example.com', passwordHash: 'hash', verificationStatus: 'approved',
+  })));
+  const sendReport = (user, targetId) => request(app).post('/api/reports').set('Authorization', auth(user))
+    .send({ type: 'review', targetId, reason: 'Contenido falso' });
+  await sendReport(a, first.body.id).expect(404);
+  for (const reporter of reporters) await sendReport(reporter, first.body.id).expect(201);
+  await sendReport(reporters[0], first.body.id).expect(409);
+  expect(await getPublishedReviews(String(b._id))).toMatchObject({ reviewCount: 0, reviews: [] });
+  expect(await getPublishedReviews(String(a._id))).toMatchObject({ reviewCount: 1 });
+  const hidden = await request(app).get(path).set('Authorization', auth(b)).expect(200);
+  expect(hidden.body.otherReview).toBeNull();
+
 });
