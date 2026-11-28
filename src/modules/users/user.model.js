@@ -37,8 +37,18 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ['user', 'moderator'],
+      enum: ['user', 'moderator', 'admin'],
       default: 'user',
+    },
+    roleHistory: {
+      type: [{
+        _id: false,
+        actor: { type: mongoose.Schema.Types.ObjectId, required: true },
+        role: { type: String, enum: ['user', 'moderator'], required: true },
+        at: { type: Date, required: true },
+      }],
+      select: false,
+      default: [],
     },
     passwordResetTokenHash: {
       type: String,

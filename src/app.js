@@ -44,6 +44,10 @@ app.use('/api/conversations', conversationRoutes);
 app.use('/api/matches', require('./modules/dates/date-invitation.routes'));
 app.use('/api/notifications', notificationRoutes);
 
+const { reportRoutes, moderationRoutes } = require('./modules/moderation/report.routes');
+app.use('/api/reports', reportRoutes);
+app.use('/api/moderation', moderationRoutes);
+
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 
 const { uploadDirectory } = require('./modules/profiles/photo.service');
