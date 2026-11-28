@@ -1,5 +1,6 @@
 jest.mock('../src/modules/dates/date-invitation.model', () => ({ deleteMany: jest.fn() }));
 jest.mock('../src/modules/dates/date-checkin.model', () => ({ deleteMany: jest.fn() }));
+jest.mock('../src/modules/reviews/review.model', () => ({ deleteMany: jest.fn() }));
 jest.mock('../src/modules/users/user.model', () => ({ findOne: jest.fn(), deleteOne: jest.fn() }));
 jest.mock('../src/modules/profiles/profile.model', () => ({ findOne: jest.fn(), deleteMany: jest.fn() }));
 jest.mock('../src/modules/consents/consent.model', () => ({ deleteMany: jest.fn() }));
@@ -20,6 +21,7 @@ const Swipe = require('../src/modules/swipes/swipe.model');
 const Match = require('../src/modules/matches/match.model');
 const Message = require('../src/modules/messages/message.model');
 const DateCheckin = require('../src/modules/dates/date-checkin.model');
+const Review = require('../src/modules/reviews/review.model');
 const photos = require('../src/modules/profiles/photo.service');
 const { processDeletion } = require('../src/modules/users/user-deletion.service');
 
@@ -90,6 +92,10 @@ beforeEach(async () => {
       { user: target, participants: [target, other] }, { user: other, participants: [target, other] },
       { user: other, participants: [other, active] },
     ],
+    reviews: [
+      { author: target, subject: other }, { author: other, subject: target },
+      { author: other, subject: active },
+    ],
   };
   User.findOne.mockImplementation(async (filter) => state.users.find((row) => matches(row, filter)));
   Profile.findOne.mockImplementation(async (filter) => state.profiles.find((row) => matches(row, filter)));
@@ -118,6 +124,10 @@ beforeEach(async () => {
     state.checkins = state.checkins.filter((row) => !row.participants.includes(filter.participants));
     return { acknowledged: true };
   });
+  Review.deleteMany.mockImplementation(async (filter) => {
+    state.reviews = state.reviews.filter((row) => !filter.$or.some((condition) => matches(row, condition)));
+    return { acknowledged: true };
+  });
   photos.deletePhotos.mockImplementation(realPhotos.deletePhotos);
   for (const filename of ['a-1.png', 'a-2.jpg', 'b-1.png']) {
     await fs.writeFile(path.join(realPhotos.uploadDirectory, filename), 'fixture de prueba');
@@ -134,6 +144,7 @@ async function expectTargetDeleted() {
   expect(state.matches).toEqual([{ userA: other, userB: active }]);
   expect(state.messages).toEqual([{ sender: other, recipient: active }]);
   expect(state.checkins).toEqual([{ user: other, participants: [other, active] }]);
+  expect(state.reviews).toEqual([{ author: other, subject: active }]);
   expect((await fs.readdir(realPhotos.uploadDirectory)).sort()).toEqual(['b-1.png']);
   expect(await fs.readFile(path.join(realPhotos.uploadDirectory, 'b-1.png'), 'utf8'))
     .toBe('fixture de prueba');
@@ -144,12 +155,13 @@ test('Borra todos los datos y archivos del solicitante y conserva los de otras c
   await expectTargetDeleted();
 });
 
-test.each(['photos', 'profile', 'consents', 'sessions', 'swipes', 'messages', 'checkins', 'matches', 'user'])(
+test.each(['photos', 'profile', 'consents', 'sessions', 'swipes', 'messages', 'checkins', 'reviews', 'matches', 'user'])(
   'Se recupera de un fallo en %s sin perder la solicitud', async (step) => {
     const operations = {
       photos: photos.deletePhotos, profile: Profile.deleteMany,
       consents: Consent.deleteMany, sessions: Session.deleteMany,
       swipes: Swipe.deleteMany, messages: Message.deleteMany, checkins: DateCheckin.deleteMany,
+      reviews: Review.deleteMany,
       matches: Match.deleteMany, user: User.deleteOne,
     };
     operations[step].mockRejectedValueOnce(new Error('Fallo temporal'));

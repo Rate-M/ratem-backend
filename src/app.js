@@ -43,6 +43,7 @@ app.use('/api/matches', messageRoutes);
 app.use('/api/conversations', conversationRoutes);
 app.use('/api/matches', require('./modules/dates/date-invitation.routes'));
 app.use('/api/matches', require('./modules/dates/date-checkin.routes'));
+app.use('/api/matches', require('./modules/reviews/review.routes'));
 app.use('/api/notifications', notificationRoutes);
 
 const { reportRoutes, moderationRoutes } = require('./modules/moderation/report.routes');
