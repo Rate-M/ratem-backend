@@ -7,11 +7,13 @@ const { startStreakScheduler } = require('./modules/streaks/streak.scheduler');
 require('./modules/consents/consent.service');
 
 const { getStreakThresholdDays } = require('./config/streak');
+const { getDateCheckinSettings } = require('./config/date-checkin');
 
 const PORT = process.env.PORT || 3000;
 
 try {
   getStreakThresholdDays();
+  getDateCheckinSettings();
 } catch (err) {
   console.error('Configuración inválida:', err.message);
   process.exit(1);

@@ -8,7 +8,7 @@ const auditSchema = new mongoose.Schema({
 }, { _id: false });
 
 const schema = new mongoose.Schema({
-  type: { type: String, enum: ['message', 'profile', 'photo'], required: true },
+  type: { type: String, enum: ['message', 'profile', 'photo', 'review'], required: true },
   target: { type: mongoose.Schema.Types.ObjectId, required: true },
   reporter: { type: mongoose.Schema.Types.ObjectId, required: true },
   reportedUser: { type: mongoose.Schema.Types.ObjectId, required: true },
@@ -21,6 +21,7 @@ const schema = new mongoose.Schema({
 
 schema.index({ reporter: 1, type: 1, target: 1, photo: 1 }, { unique: true });
 schema.index({ reportedUser: 1 });
+schema.index({ type: 1, target: 1 });
 schema.index({ status: 1, priority: -1, _id: -1 });
 
 module.exports = mongoose.model('Report', schema);

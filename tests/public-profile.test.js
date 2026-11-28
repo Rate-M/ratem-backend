@@ -1,3 +1,6 @@
+jest.mock('../src/modules/reviews/review.service', () => ({
+  getPublishedReviews: jest.fn(async () => ({ averageRating: null, reviewCount: 0, reviews: [] })),
+}));
 jest.mock('../src/modules/users/user.model', () => ({ findById: jest.fn(), exists: jest.fn() }));
 jest.mock('../src/modules/profiles/profile.model', () => ({ findOne: jest.fn() }));
 

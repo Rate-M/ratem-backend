@@ -5,6 +5,8 @@ const Consent = require('../consents/consent.model');
 const VerificationSession = require('../verification/verification.model');
 const Swipe = require('../swipes/swipe.model');
 const DateInvitation = require('../dates/date-invitation.model');
+const DateCheckin = require('../dates/date-checkin.model');
+const Review = require('../reviews/review.model');
 const Match = require('../matches/match.model');
 const Message = require('../messages/message.model');
 const { deletePhotos } = require('../profiles/photo.service');
@@ -54,6 +56,8 @@ async function processDeletion(userId) {
   await VerificationSession.deleteMany({ user: userId });
   await Swipe.deleteMany({ $or: [{ from: userId }, { to: userId }] });
   await Message.deleteMany({ $or: [{ sender: userId }, { recipient: userId }] });
+  await DateCheckin.deleteMany({ participants: userId });
+  await Review.deleteMany({ $or: [{ author: userId }, { subject: userId }] });
   await DateInvitation.deleteMany({ $or: [{ sender: userId }, { recipient: userId }] });
   await Match.deleteMany({ $or: [{ userA: userId }, { userB: userId }] });
   // La marca de solicitud permanece hasta completar todas las operaciones.
