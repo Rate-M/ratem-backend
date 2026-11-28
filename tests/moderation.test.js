@@ -111,6 +111,7 @@ test('publica propuestas aprobadas, aplica suspensiones y exporta las decisiones
   expect(activity.body.items.map((item) => item.action)).toEqual(expect.arrayContaining(['approved', 'suspend', 'ban', 'restore', 'reviewed']));
   const csv = await client.get('/api/moderation/activity?format=csv&category=users')
     .set('Authorization', auth(staff)).expect(200);
+  expect(csv.headers['access-control-expose-headers']).toContain('X-Next-Page');
   expect(csv.text).toContain("'=1+1");
   expect(csv.text).not.toContain('Consultado en el proveedor');
 });
