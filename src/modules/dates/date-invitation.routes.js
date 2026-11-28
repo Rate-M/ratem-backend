@@ -26,6 +26,12 @@ async function findActiveMatch(id, userId) {
   return { match, other };
 }
 
+function parseFutureDate(value) {
+  if (typeof value !== 'string') return null;
+  const date = new Date(value);
+  return date.getTime() > Date.now() && date.toISOString() === value ? date : null;
+}
+
 function serialize(invitation, userId) {
   return {
     id: invitation._id,
@@ -35,6 +41,9 @@ function serialize(invitation, userId) {
     startsAt: invitation.startsAt,
     note: invitation.note,
     status: invitation.status,
+    revision: invitation.revision ?? 0,
+    awaitingYourResponse: invitation.status === 'pending' &&
+      String(invitation.proposedBy ?? invitation.sender) !== userId,
     createdAt: invitation.createdAt,
   };
 }
@@ -47,10 +56,9 @@ router.post('/:matchId/invitations', async (req, res, next) => {
       return res.status(400).json({ message: 'Envía el lugar, la fecha y una nota opcional' });
     }
     const { placeId, startsAt, note = '' } = payload;
-    const start = new Date(typeof startsAt === 'string' ? startsAt : NaN);
+    const start = parseFutureDate(startsAt);
     if (typeof placeId !== 'string' || !/^[A-Za-z0-9_-]{10,300}$/.test(placeId) ||
-      typeof startsAt !== 'string' || !Number.isFinite(start.getTime()) ||
-      start.toISOString() !== startsAt || start.getTime() <= Date.now() ||
+      !start ||
       typeof note !== 'string' || note.trim().length > 300) {
       return res.status(400).json({ message: 'Envía un lugar válido, una fecha futura en UTC y una nota de hasta 300 caracteres' });
     }
@@ -89,6 +97,54 @@ router.get('/:matchId/invitations', async (req, res, next) => {
       invitations: page.map((row) => serialize(row, req.user.id)),
       nextCursor: rows.length > 50 ? String(page[49]._id) : null,
     });
+  } catch (error) { next(error); }
+});
+
+router.patch('/:matchId/invitations/:invitationId', async (req, res, next) => {
+  try {
+    const payload = req.body;
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload) ||
+      Object.keys(payload).some((key) => !['action', 'revision', 'startsAt'].includes(key))) {
+      return res.status(400).json({ message: 'Envía la acción y la revisión de la invitación' });
+    }
+    const { action, revision, startsAt } = payload;
+    const proposedDate = action === 'propose' ? parseFutureDate(startsAt) : null;
+    if (!['accept', 'decline', 'propose'].includes(action) || !Number.isSafeInteger(revision) || revision < 0 ||
+      (action === 'propose' ? !proposedDate : startsAt !== undefined)) {
+      return res.status(400).json({ message: 'La respuesta o la nueva fecha no es válida' });
+    }
+
+    const context = await findActiveMatch(req.params.matchId, req.user.id);
+    if (!context || !validId(req.params.invitationId)) {
+      return res.status(404).json({ message: 'Invitación no encontrada' });
+    }
+    const filter = { _id: req.params.invitationId, match: context.match._id };
+    const invitation = await DateInvitation.findOne(filter).lean();
+    if (!invitation) return res.status(404).json({ message: 'Invitación no encontrada' });
+
+    if (invitation.status !== 'pending' || (invitation.revision ?? 0) !== revision) {
+      return res.status(409).json({ message: 'La invitación cambió. Actualízala antes de responder' });
+    }
+    if (String(invitation.proposedBy ?? invitation.sender) === req.user.id) {
+      return res.status(403).json({ message: 'La otra persona debe responder a esta propuesta' });
+    }
+    if (action === 'accept' && invitation.startsAt.getTime() <= Date.now()) {
+      return res.status(409).json({ message: 'La hora de la cita ya pasó. Propón una hora nueva' });
+    }
+    if (proposedDate?.getTime() === invitation.startsAt.getTime()) {
+      return res.status(400).json({ message: 'Propón una hora distinta' });
+    }
+
+    const $set = proposedDate
+      ? { startsAt: proposedDate, proposedBy: req.user.id }
+      : { status: action === 'accept' ? 'accepted' : 'declined' };
+    const updated = await DateInvitation.findOneAndUpdate({
+      ...filter, status: 'pending',
+      ...(revision === 0 ? { $or: [{ revision: 0 }, { revision: { $exists: false } }] } : { revision }),
+    }, { $set, $inc: { revision: 1 } }, { returnDocument: 'after', runValidators: true });
+
+    if (!updated) return res.status(409).json({ message: 'La invitación cambió. Actualízala antes de responder' });
+    return res.json(serialize(updated, req.user.id));
   } catch (error) { next(error); }
 });
 
