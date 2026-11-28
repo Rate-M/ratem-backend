@@ -1,3 +1,4 @@
+jest.mock('../src/modules/dates/date-invitation.model', () => ({ deleteMany: jest.fn() }));
 jest.mock('../src/modules/users/user.model', () => ({
   findById: jest.fn(), findOne: jest.fn(), findOneAndUpdate: jest.fn(), deleteOne: jest.fn(),
 }));

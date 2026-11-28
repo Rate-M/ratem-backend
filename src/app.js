@@ -41,6 +41,7 @@ app.use('/api/matches', matchRoutes);
 const { messageRoutes, conversationRoutes } = require('./modules/messages/message.routes');
 app.use('/api/matches', messageRoutes);
 app.use('/api/conversations', conversationRoutes);
+app.use('/api/matches', require('./modules/dates/date-invitation.routes'));
 app.use('/api/notifications', notificationRoutes);
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
