@@ -127,3 +127,22 @@ producción, de redes móviles ni de un despliegue con varios nodos.
 Referencias del protocolo utilizado:
 - [Inicialización del servidor Socket.io](https://socket.io/docs/v4/server-initialization/).
 - [Autenticación con middleware y auth.token](https://socket.io/docs/v4/middlewares/).
+
+## Confirmaciones de lectura
+
+El cliente emite `message:read` con `{ matchId, messageId }` y un callback
+para el acuse. El mensaje debe pertenecer al match activo y haberse recibido
+del otro participante. El servidor responde `{ ok: true, receipt }` o
+`{ ok: false, error }`. Una confirmación avanzada también se emite como
+`message:read` a las conexiones de ambos participantes.
+
+El recibo contiene `matchId`, `readerId` y `messageId`. Cada participante
+tiene un cursor en el orden de IDs que usa el historial. El servidor guarda
+el mayor ID de forma atómica y devuelve el cursor vigente ante reintentos.
+Los clientes deben aplicar el mismo máximo por lector si reciben eventos
+fuera de orden.
+
+`GET /api/matches/:id/messages` incluye `readThrough: { me, other }` para
+recuperar ambos cursores al abrir o reconectar el chat. Cada cursor es
+`null` hasta que se registra una lectura. Para mostrar «Leído», compara
+solo mensajes propios contra el cursor `other` de ese match.
