@@ -220,6 +220,7 @@ router.get('/activity', async (req, res, next) => {
     const items = rows.slice(0, limit);
     const nextPage = rows.length > limit ? number + 1 : null;
     if (format === 'json') return res.json({ items, nextPage });
+    res.append('Access-Control-Expose-Headers', 'X-Next-Page');
     if (nextPage) res.set('X-Next-Page', String(nextPage));
     const csv = ['fecha,categoria,referencia,actor,accion,nota', ...items.map((row) =>
       [row.at.toISOString(), row.category, row._id, row.actor, row.action, row.note].map(csvCell).join(','))];
