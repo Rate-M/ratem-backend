@@ -65,6 +65,11 @@ function serializeConfirmation(invitation, checkins, userId, now, settings) {
       ? { at: mine.at, withinRadius: mine.withinRadius, distanceMeters: Math.round(mine.distanceMeters) }
       : null,
     otherCheckedIn: Boolean(other?.withinRadius),
+    manual: {
+      me: (invitation.manualConfirmedBy ?? []).some((id) => String(id) === userId),
+      other: (invitation.manualConfirmedBy ?? []).some((id) => String(id) !== userId),
+      available: confirmationStatus(invitation, now, settings) === 'failed',
+    },
   };
 }
 
@@ -207,9 +212,37 @@ async function checkIn(userId, matchId, invitationId, data, now = new Date()) {
   return getConfirmation(userId, matchId, invitationId, now);
 }
 
+async function confirmManually(userId, matchId, invitationId, now = new Date()) {
+  const invitation = await findInvitation(userId, matchId, invitationId);
+  const status = confirmationStatus(invitation, now);
+  if (status === 'confirmed' && invitation.confirmationMethod === 'manual') {
+    return getConfirmation(userId, matchId, invitationId, now);
+  }
+  if (status !== 'failed') {
+    fail('La confirmación manual está disponible después de la ventana de ubicación', 409, 'MANUAL_UNAVAILABLE');
+  }
+
+  const participants = [invitation.sender, invitation.recipient];
+  await DateInvitation.updateOne(
+    { _id: invitation._id, status: 'accepted', confirmedAt: null },
+    { $addToSet: { manualConfirmedBy: userId } }
+  );
+  await DateInvitation.updateOne(
+    { _id: invitation._id, status: 'accepted', confirmedAt: null, manualConfirmedBy: { $all: participants } },
+    { $set: {
+      confirmedAt: now,
+      confirmationMethod: 'manual',
+      reviewDeadline: new Date(new Date(invitation.startsAt).getTime() + REVIEW_WINDOW_DAYS * DAY_MS),
+    } },
+    { runValidators: true }
+  );
+  return getConfirmation(userId, matchId, invitationId, now);
+}
+
 module.exports = {
   distanceInMeters,
   confirmationStatus,
   getConfirmation,
   checkIn,
+  confirmManually,
 };

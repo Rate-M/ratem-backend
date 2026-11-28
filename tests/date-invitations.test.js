@@ -79,3 +79,30 @@ test('guarda la invitación para ambos participantes solo con racha y lugar vál
   const declined = await reply(recipient, { action: 'decline', revision: 0 }, second.body.id).expect(200);
   expect(declined.body).toMatchObject({ status: 'declined', revision: 1, awaitingYourResponse: false });
 });
+
+test('confirma manualmente cuando ambos participantes responden después de la ventana', async () => {
+  const [a, b] = await User.insertMany(['manual-a', 'manual-b'].map((name) => ({
+    email: name + '@example.com', passwordHash: 'hash', verificationStatus: 'approved',
+  })));
+  const match = await Match.create({ userA: a._id, userB: b._id });
+  const invitation = await DateInvitation.create({
+    match: match._id, sender: a._id, recipient: b._id, status: 'accepted',
+    placeId: 'google-test-place', coordinates: [-103.44, 25.54],
+    startsAt: new Date(Date.now() + 86400000),
+  });
+  const path = '/api/matches/' + match._id + '/invitations/' + invitation._id + '/manual-confirmations';
+  const confirm = (user) => request(app).post(path).set('Authorization',
+    'Bearer ' + jwt.sign({ sub: String(user._id) }, process.env.JWT_SECRET));
+  await confirm(a).expect(409);
+  await DateInvitation.updateOne({ _id: invitation._id }, { $set: { startsAt: new Date(Date.now() - 86400000) } });
+
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const first = await confirm(a).expect(200);
+    expect(first.body).toMatchObject({ confirmedAt: null, manual: { me: true, other: false, available: true } });
+  }
+  const second = await confirm(b).expect(200);
+  expect(second.body).toMatchObject({ status: 'confirmed', confirmationMethod: 'manual', manual: { me: true, other: true } });
+  expect(second.body.reviewDeadline).toEqual(expect.any(String));
+  const repeated = await confirm(b).expect(200);
+  expect(repeated.body.confirmedAt).toBe(second.body.confirmedAt);
+});
