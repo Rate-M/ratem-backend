@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const Decision = require('../moderation/decision.schema');
 
 const verificationSessionSchema = new mongoose.Schema(
   {
@@ -20,6 +21,7 @@ const verificationSessionSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    supportReview: { type: Decision, default: null },
     status: {
       type: String,
       enum: ['pending', 'approved', 'rejected', 'expired'],

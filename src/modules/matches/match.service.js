@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const Match = require('./match.model');
 const Swipe = require('../swipes/swipe.model');
+const { isSuspended, availableAccount } = require('../users/account-status');
 const User = require('../users/user.model');
 
 function serializeMatch(match) {
@@ -18,7 +19,7 @@ async function ensureMutualMatch(from, to) {
   if (!reciprocal) return null;
 
   const available = await User.countDocuments({
-    _id: { $in: [userA, userB] }, verificationStatus: 'approved', deletionRequestedAt: null,
+    _id: { $in: [userA, userB] }, verificationStatus: 'approved', deletionRequestedAt: null, ...availableAccount(),
   });
   if (available !== 2) return null;
 
@@ -48,10 +49,10 @@ async function listMatches(userId, { before, unreadOnly = false } = {}) {
   if (unreadOnly) filter.readBy = { $ne: userId };
   const rows = await Match.find(filter)
     .sort({ _id: -1 }).limit(51)
-    .populate('userA userB', '_id verificationStatus deletionRequestedAt').lean();
+    .populate('userA userB', '_id verificationStatus deletionRequestedAt suspendedUntil suspendedPermanently').lean();
   const page = rows.slice(0, 50);
   const matches = page.filter((row) => [row.userA, row.userB].every(
-    (user) => user && user.verificationStatus === 'approved' && !user.deletionRequestedAt
+    (user) => user && user.verificationStatus === 'approved' && !user.deletionRequestedAt && !isSuspended(user)
   )).map(serializeMatch);
 
   return { matches, nextCursor: rows.length > 50 ? String(page[49]._id) : null };

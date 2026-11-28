@@ -1,9 +1,11 @@
 const { Router } = require('express');
+const { STREAK_TIMEZONE, localDate, localMidnight } = require('../streaks/streak.service');
 const authenticate = require('../../middlewares/auth');
 const requireVerification = require('../../middlewares/require-verification');
 const Message = require('../messages/message.model');
 const Profile = require('../profiles/profile.model');
 const Report = require('./report.model');
+const { availableAccount } = require('../users/account-status');
 const User = require('../users/user.model');
 
 const reportRoutes = Router();
@@ -66,22 +68,53 @@ moderationRoutes.use(authenticate, authorize(['moderator', 'admin']), (req, res,
 
 moderationRoutes.get('/reports', async (req, res, next) => {
   try {
-    const { type, status, page = '1' } = req.query;
+    const { type, status, page = '1', q = '' } = req.query;
     const pageNumber = Number(page);
     if ((type !== undefined && !types.includes(type)) ||
       (status !== undefined && !statuses.includes(status)) ||
-      typeof page !== 'string' || !/^[1-9]\d{0,3}$/.test(page)) {
+      typeof page !== 'string' || !/^[1-9]\d{0,3}$/.test(page) || typeof q !== 'string' || q.length > 100) {
       return res.status(400).json({ message: 'Filtros de reportes inválidos' });
     }
     const filter = { ...(type ? { type } : {}), ...(status ? { status } : {}) };
-    const [rows, counts] = await Promise.all([
+    if (q.trim()) {
+      const term = q.trim();
+      const pattern = new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      const users = await Profile.find({ name: pattern }).distinct('user');
+      filter.$or = [{ reason: pattern }, { reporter: { $in: users } }, { reportedUser: { $in: users } }];
+      if (objectId(term)) filter.$or.push({ _id: term }, { reporter: term }, { reportedUser: term });
+    }
+    const today = localMidnight(localDate(new Date(), STREAK_TIMEZONE));
+    const [rows, [summary]] = await Promise.all([
       Report.find(filter).sort({ priority: -1, _id: -1 }).skip((pageNumber - 1) * 50).limit(51).lean(),
-      Report.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }]),
+      Report.aggregate([{ $facet: {
+        byStatus: [{ $group: { _id: '$status', count: { $sum: 1 } } }],
+        byType: [{ $group: { _id: '$type', count: { $sum: 1 } } }],
+        resolvedToday: [{ $match: { audit: { $elemMatch: { status: 'resolved', at: { $gte: today } } } } }, { $count: 'count' }],
+        responseTime: [
+          { $match: { 'audit.0': { $exists: true } } },
+          { $project: { firstAction: { $arrayElemAt: ['$audit.at', 0] }, createdAt: 1 } },
+          { $group: { _id: null, averageMs: { $avg: { $subtract: ['$firstAction', '$createdAt'] } } } },
+        ],
+      } }]),
     ]);
+    const pageRows = rows.slice(0, 50);
+    const profileIds = pageRows.flatMap((row) => [row.reporter, row.reportedUser]);
+    const profiles = await Profile.find({ user: { $in: profileIds } }).select('user name').lean();
+    const names = new Map(profiles.map((profile) => [String(profile.user), profile.name]));
+    const counts = (values, bucket) => Object.fromEntries(values.map((value) => [
+      value, bucket.find((row) => row._id === value)?.count ?? 0,
+    ]));
     res.json({
-      reports: rows.slice(0, 50).map(metadata),
+      reports: pageRows.map((row) => ({
+        ...metadata(row),
+        reporterName: names.get(String(row.reporter)) ?? null,
+        reportedUserName: names.get(String(row.reportedUser)) ?? null,
+      })),
       nextPage: rows.length > 50 ? pageNumber + 1 : null,
-      counts: Object.fromEntries(statuses.map((value) => [value, counts.find((row) => row._id === value)?.count ?? 0])),
+      counts: counts(statuses, summary.byStatus),
+      typeCounts: counts(types, summary.byType),
+      resolvedToday: summary.resolvedToday[0]?.count ?? 0,
+      averageResponseMs: summary.responseTime[0]?.averageMs ?? null,
     });
   } catch (error) { next(error); }
 });
@@ -134,7 +167,10 @@ moderationRoutes.patch('/users/:id/role', authorize(['admin']), async (req, res,
     if (!['user', 'moderator'].includes(role)) return res.status(400).json({ message: 'Rol inválido' });
     if (!objectId(req.params.id)) return res.status(404).json({ message: 'Cuenta no encontrada' });
 
-    const filter = { _id: req.params.id, deletionRequestedAt: null, emailVerified: true };
+    const filter = {
+      _id: req.params.id, deletionRequestedAt: null, emailVerified: true,
+      ...(role === 'moderator' ? availableAccount() : {}),
+    };
     const account = await User.findOneAndUpdate(
       { ...filter, role: role === 'moderator' ? 'user' : 'moderator' },
       { $set: { role }, $push: { roleHistory: { actor: req.user.id, role, at: new Date() } } },
@@ -146,5 +182,7 @@ moderationRoutes.patch('/users/:id/role', authorize(['admin']), async (req, res,
     return res.json({ id: req.params.id.toLowerCase(), role });
   } catch (error) { next(error); }
 });
+
+moderationRoutes.use(require('./support.routes'));
 
 module.exports = { reportRoutes, moderationRoutes };

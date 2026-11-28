@@ -1,3 +1,4 @@
+const { isSuspended } = require('../modules/users/account-status');
 const jwt = require('jsonwebtoken');
 const User = require('../modules/users/user.model');
 
@@ -24,6 +25,9 @@ async function authenticate(req, res, next) {
     const account = await User.findById(payload.sub);
     if (!account || account.deletionRequestedAt) {
       return res.status(401).json({ message: 'Cuenta no disponible' });
+    }
+    if (isSuspended(account)) {
+      return res.status(403).json({ code: 'ACCOUNT_SUSPENDED', message: 'Tu cuenta está suspendida' });
     }
     req.account = account;
     req.user = { id: payload.sub, role: account.role };

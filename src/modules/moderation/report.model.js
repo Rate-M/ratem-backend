@@ -20,6 +20,7 @@ const schema = new mongoose.Schema({
 }, { timestamps: true });
 
 schema.index({ reporter: 1, type: 1, target: 1, photo: 1 }, { unique: true });
+schema.index({ reportedUser: 1 });
 schema.index({ status: 1, priority: -1, _id: -1 });
 
 module.exports = mongoose.model('Report', schema);

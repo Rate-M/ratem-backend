@@ -1,3 +1,4 @@
+const { isSuspended } = require('../users/account-status');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
@@ -56,6 +57,12 @@ async function loginUser({ email, password }) {
 
   const match = await bcrypt.compare(password, user.passwordHash);
   if (!match) throw genericError;
+
+  if (isSuspended(user)) {
+    const error = new Error('Tu cuenta está suspendida');
+    error.status = 403;
+    throw error;
+  }
 
   const token = jwt.sign(
     { sub: user._id.toString(), role: user.role },

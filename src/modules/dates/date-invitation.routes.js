@@ -5,6 +5,7 @@ const requireVerification = require('../../middlewares/require-verification');
 const { hasReachedStreakThreshold } = require('../../config/streak');
 const Match = require('../matches/match.model');
 const Place = require('../places/place.model');
+const { availableAccount } = require('../users/account-status');
 const User = require('../users/user.model');
 const DateInvitation = require('./date-invitation.model');
 
@@ -22,7 +23,7 @@ async function findActiveMatch(id, userId) {
   }).lean();
   if (!match) return null;
   const other = String(match.userA) === userId ? match.userB : match.userA;
-  if (!await User.exists({ _id: other, verificationStatus: 'approved', deletionRequestedAt: null })) return null;
+  if (!await User.exists({ _id: other, verificationStatus: 'approved', deletionRequestedAt: null, ...availableAccount() })) return null;
   return { match, other };
 }
 

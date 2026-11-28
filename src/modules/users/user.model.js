@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const Decision = require('../moderation/decision.schema');
 
 const userSchema = new mongoose.Schema(
   {
@@ -40,6 +41,10 @@ const userSchema = new mongoose.Schema(
       enum: ['user', 'moderator', 'admin'],
       default: 'user',
     },
+    underWatch: { type: Boolean, default: false },
+    suspendedUntil: { type: Date, default: null },
+    suspendedPermanently: { type: Boolean, default: false },
+    moderationHistory: { type: [Decision], default: [], select: false },
     roleHistory: {
       type: [{
         _id: false,
